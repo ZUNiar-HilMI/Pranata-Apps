@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Sensitive config files - API keys & credentials
+lib/firebase_options.dart
+lib/config/cloudinary_config.dart
+lib/config/email_config.dart
+android/app/google-services.json
