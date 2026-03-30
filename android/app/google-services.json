@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1012151219478",
+    "project_id": "pranata-dfebd",
+    "storage_bucket": "pranata-dfebd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1012151219478:android:d3d830f0735249b9998c37",
+        "android_client_info": {
+          "package_name": "com.example.my_first_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5W89maldntfRaEHb3dRBMsYJ6q3wOb20"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
