@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +14,7 @@ import 'notifications_screen.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/export_service.dart';
+import '../services/notification_service.dart';
 import '../models/activity.dart';
 import '../widgets/offline_banner.dart';
 import 'package:image_picker/image_picker.dart';
@@ -39,6 +41,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   // Key to force-refresh recent items after add/delete
   int _recentItemsKey = 0;
 
+  // Notification badge
+  int _notificationCount = 0;
+  StreamSubscription<int>? _notifSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -54,10 +60,107 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+
+    // Subscribe to notification count
+    _initNotificationBadge();
+  }
+
+  void _initNotificationBadge() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.currentUser;
+    if (user == null) return;
+
+    bool hasShownPopup = false;
+    final notifService = NotificationService();
+    _notifSubscription = notifService
+        .getUnreadCountStream(
+          userId: user.id,
+          isAdmin: user.isAdminDinas,
+          dinasId: user.dinasId,
+        )
+        .listen((count) {
+      if (mounted) {
+        final previousCount = _notificationCount;
+        setState(() => _notificationCount = count);
+
+        // Show popup for member when unread notifications exist
+        if (count > 0 && !hasShownPopup && !user.isAdminDinas) {
+          hasShownPopup = true;
+          _showNotificationPopup(count);
+        }
+        // Reset popup flag when count drops to 0 (user read all)
+        if (count == 0) hasShownPopup = false;
+      }
+    });
+  }
+
+  void _showNotificationPopup(int count) {
+    // Small delay to let the UI settle
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.notifications_active, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Notifikasi Baru',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Text(
+                      'Anda memiliki $count notifikasi yang belum dibaca',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.goldDark,
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          action: SnackBarAction(
+            label: 'Lihat',
+            textColor: Colors.white,
+            onPressed: () async {
+              final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
+              if (user != null) {
+                await NotificationService().markNotificationsRead(user.id);
+              }
+              if (mounted) {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+                );
+                if (user != null) {
+                  await NotificationService().markNotificationsRead(user.id);
+                }
+              }
+            },
+          ),
+        ),
+      );
+    });
   }
 
   @override
   void dispose() {
+    _notifSubscription?.cancel();
     _animationController.dispose();
     super.dispose();
   }
@@ -211,6 +314,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       currentYear - 2020 + 1,
       (index) => currentYear - index,
     );
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final dinasId = authProvider.dinasId;
+    final accent = DinasTheme.primaryAccent(dinasId);
+    final accentL = DinasTheme.accentLight(dinasId);
 
     showDialog(
       context: context,
@@ -227,27 +334,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.calendar_today, color: Color(0xFF2563EB), size: 20),
-                      SizedBox(width: 8),
+                      Icon(Icons.calendar_today, color: accent, size: 20),
+                      const SizedBox(width: 8),
                       Text(
-                        'Select Year',
+                        'Pilih Tahun',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1F2937),
+                          color: accentL,
                         ),
                       ),
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFF6B7280)),
+                    icon: Icon(Icons.close, color: Colors.white.withOpacity(0.6)),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              const Divider(),
+              Divider(color: accent.withOpacity(0.3)),
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
@@ -271,12 +378,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFF2563EB).withOpacity(0.1)
+                              ? accent.withOpacity(0.15)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           border: isSelected
                               ? Border.all(
-                                  color: const Color(0xFF2563EB),
+                                  color: accent,
                                   width: 2,
                                 )
                               : null,
@@ -290,14 +397,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 fontSize: 16,
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                 color: isSelected
-                                    ? const Color(0xFF2563EB)
-                                    : const Color(0xFF1F2937),
+                                    ? accentL
+                                    : Colors.white.withOpacity(0.85),
                               ),
                             ),
                             if (isSelected)
-                              const Icon(
+                              Icon(
                                 Icons.check_circle,
-                                color: Color(0xFF2563EB),
+                                color: accent,
                                 size: 20,
                               ),
                           ],
@@ -2254,7 +2361,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildNavItem(Icons.home, 'Home', 0),
             _buildNavItem(Icons.analytics_outlined, 'Reports', 1),
             const SizedBox(width: 40), // Space for FAB
-            _buildNavItem(Icons.notifications_outlined, 'Notifications', 2),
+            _buildNavItem(Icons.notifications_outlined, 'Notifications', 2, badgeCount: _notificationCount),
             _buildNavItem(Icons.settings_outlined, 'Settings', 3),
           ],
         ),
@@ -2262,10 +2369,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
+  Widget _buildNavItem(IconData icon, String label, int index, {int badgeCount = 0}) {
     final isSelected = _selectedIndex == index;
     return InkWell(
-      onTap: () {
+      onTap: () async {
         if (index == 1) {
           // Navigate to Reports screen
           Navigator.push(
@@ -2273,11 +2380,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             MaterialPageRoute(builder: (context) => const ReportsScreen()),
           );
         } else if (index == 2) {
-          // Navigate to Notifications screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-          );
+          // Navigate to Notifications screen & mark as read
+          final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
+          if (user != null) {
+            await NotificationService().markNotificationsRead(user.id);
+          }
+          if (mounted) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+            );
+            // Re-mark as read when returning (in case new notifs came while viewing)
+            if (user != null) {
+              await NotificationService().markNotificationsRead(user.id);
+            }
+          }
         } else if (index == 3) {
           // Navigate to Settings screen
           Navigator.push(
@@ -2291,10 +2408,39 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            color: isSelected ? AppColors.goldLight : AppColors.textSecondary,
-            size: 24,
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? AppColors.goldLight : AppColors.textSecondary,
+                size: 24,
+              ),
+              if (badgeCount > 0)
+                Positioned(
+                  right: -8,
+                  top: -4,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.navyMid, width: 1.5),
+                    ),
+                    child: Text(
+                      badgeCount > 99 ? '99+' : '$badgeCount',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(

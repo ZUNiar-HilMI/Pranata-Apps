@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../config/app_theme.dart';
 import '../../models/activity.dart';
+import '../../models/dinas.dart';
 import '../../services/firestore_service.dart';
 import '../../services/export_service.dart';
 
@@ -34,6 +35,9 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
     'rejected': AppColors.error,
   };
 
+  // Track expanded state per dinas
+  final Map<String, bool> _expandedDinas = {};
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,12 +47,16 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
           children: [
             _buildHeader(),
             Expanded(
-              child: FutureBuilder<List<Activity>>(
-                future: _storage.getActivities(),
+              child: FutureBuilder<List<Object>>(
+                future: Future.wait([
+                  _storage.getActivities(),
+                  _storage.getDinasList(),
+                ]),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
-                      child: CircularProgressIndicator(color: AppColors.goldMid),
+                      child:
+                          CircularProgressIndicator(color: AppColors.goldMid),
                     );
                   }
                   if (snapshot.hasError) {
@@ -57,11 +65,41 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
                           style: const TextStyle(color: AppColors.error)),
                     );
                   }
-                  final all = snapshot.data ?? [];
+                  final all = snapshot.data![0] as List<Activity>;
+                  final dinasList = snapshot.data![1] as List<Dinas>;
                   final filtered = _filterStatus == 'Semua'
                       ? all
-                      : all.where((a) => a.status == _filterStatus).toList();
+                      : all
+                          .where((a) => a.status == _filterStatus)
+                          .toList();
                   filtered.sort((a, b) => b.date.compareTo(a.date));
+
+                  // Group activities by dinasId
+                  final Map<String, List<Activity>> grouped = {};
+                  for (final activity in filtered) {
+                    final key = activity.dinasId.isNotEmpty
+                        ? activity.dinasId
+                        : 'unknown';
+                    grouped.putIfAbsent(key, () => []).add(activity);
+                  }
+
+                  // Build dinas lookup map
+                  final dinasMap = {
+                    for (final d in dinasList) d.id: d,
+                  };
+
+                  // Sort dinas groups by name
+                  final sortedKeys = grouped.keys.toList()
+                    ..sort((a, b) {
+                      final nameA = dinasMap[a]?.name ?? a;
+                      final nameB = dinasMap[b]?.name ?? b;
+                      return nameA.compareTo(nameB);
+                    });
+
+                  // Initialize expanded state
+                  for (final key in sortedKeys) {
+                    _expandedDinas.putIfAbsent(key, () => true);
+                  }
 
                   return CustomScrollView(
                     slivers: [
@@ -71,7 +109,7 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                           child: Text(
-                            '${filtered.length} kegiatan ditemukan',
+                            '${filtered.length} kegiatan dari ${grouped.length} unit kerja',
                             style: const TextStyle(
                                 color: AppColors.textSecondary, fontSize: 12),
                           ),
@@ -81,17 +119,22 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
                         const SliverFillRemaining(
                           child: Center(
                             child: Text('Tidak ada data',
-                                style:
-                                    TextStyle(color: AppColors.textSecondary)),
+                                style: TextStyle(
+                                    color: AppColors.textSecondary)),
                           ),
                         )
                       else
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (ctx, i) => _buildActivityItem(filtered[i]),
-                            childCount: filtered.length,
-                          ),
-                        ),
+                        ...sortedKeys.map((dinasId) {
+                          final activities = grouped[dinasId]!;
+                          final dinas = dinasMap[dinasId];
+                          return SliverToBoxAdapter(
+                            child: _buildDinasSection(
+                              dinasId: dinasId,
+                              dinas: dinas,
+                              activities: activities,
+                            ),
+                          );
+                        }),
                       const SliverToBoxAdapter(child: SizedBox(height: 24)),
                     ],
                   );
@@ -104,17 +147,20 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
     );
   }
 
+  // ── Header ───────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 16, 14),
       decoration: const BoxDecoration(
         color: AppColors.navyMid,
-        border: Border(bottom: BorderSide(color: AppColors.goldMid, width: 0.3)),
+        border: Border(
+            bottom: BorderSide(color: AppColors.goldMid, width: 0.3)),
       ),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: AppColors.goldLight),
+            icon:
+                const Icon(Icons.arrow_back_ios, color: AppColors.goldLight),
             onPressed: () => Navigator.pop(context),
           ),
           const Expanded(
@@ -169,11 +215,13 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
         Icon(icon, color: color, size: 18),
         const SizedBox(width: 10),
         Text(label,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+            style:
+                const TextStyle(color: AppColors.textPrimary, fontSize: 14)),
       ]),
     );
   }
 
+  // ── Summary ──────────────────────────────────────────────────────────────
   Widget _buildSummary(List<Activity> all) {
     final approved = all.where((a) => a.status == 'approved').toList();
     final pending = all.where((a) => a.status == 'pending').toList();
@@ -184,7 +232,7 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('RINGKASAN',
+          const Text('RINGKASAN GLOBAL',
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -210,7 +258,8 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
             decoration: BoxDecoration(
               color: AppColors.navyCard,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.goldMid.withOpacity(0.3)),
+              border:
+                  Border.all(color: AppColors.goldMid.withOpacity(0.3)),
             ),
             child: Row(
               children: [
@@ -220,8 +269,10 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
                     color: AppColors.goldMid.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.account_balance_wallet_outlined,
-                      color: AppColors.goldMid, size: 20),
+                  child: const Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: AppColors.goldMid,
+                      size: 20),
                 ),
                 const SizedBox(width: 12),
                 Column(
@@ -229,7 +280,8 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
                   children: [
                     const Text('Total Anggaran Disetujui',
                         style: TextStyle(
-                            color: AppColors.textSecondary, fontSize: 11)),
+                            color: AppColors.textSecondary,
+                            fontSize: 11)),
                     Text(
                       _rupiah.format(totalBudget),
                       style: const TextStyle(
@@ -247,10 +299,12 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
     );
   }
 
-  Widget _statCard(String label, String value, IconData icon, Color color) {
+  Widget _statCard(
+      String label, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        padding:
+            const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
         decoration: BoxDecoration(
           color: AppColors.navyCard,
           borderRadius: BorderRadius.circular(12),
@@ -276,6 +330,7 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
     );
   }
 
+  // ── Filter Row ───────────────────────────────────────────────────────────
   Widget _buildFilterRow() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -292,20 +347,23 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
               child: GestureDetector(
                 onTap: () => setState(() => _filterStatus = s),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
                     color: selected
                         ? color.withOpacity(0.2)
                         : AppColors.navyCard,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: selected ? color : AppColors.goldMid.withOpacity(0.3)),
+                        color: selected
+                            ? color
+                            : AppColors.goldMid.withOpacity(0.3)),
                   ),
                   child: Text(
                     _statusLabel[s] ?? s,
                     style: TextStyle(
-                        color: selected ? color : AppColors.textSecondary,
+                        color:
+                            selected ? color : AppColors.textSecondary,
                         fontSize: 13,
                         fontWeight: selected
                             ? FontWeight.w600
@@ -320,6 +378,201 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
     );
   }
 
+  // ── Dinas Section (grouped) ──────────────────────────────────────────────
+  Widget _buildDinasSection({
+    required String dinasId,
+    required Dinas? dinas,
+    required List<Activity> activities,
+  }) {
+    final isExpanded = _expandedDinas[dinasId] ?? true;
+    final dinasName = dinas?.name ?? DinasTheme.dinasLabel(dinasId);
+    final dinasCode = dinas?.code ?? dinasId.toUpperCase();
+    final approvedInDinas =
+        activities.where((a) => a.status == 'approved').toList();
+    final pendingInDinas =
+        activities.where((a) => a.status == 'pending').length;
+    final totalBudgetDinas =
+        approvedInDinas.fold(0.0, (s, a) => s + a.budget);
+    final accent = DinasTheme.primaryAccent(dinasId);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      decoration: BoxDecoration(
+        color: AppColors.navyCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: accent.withOpacity(0.4),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          // ── Section Header (tap to expand/collapse) ──────────────────
+          InkWell(
+            onTap: () =>
+                setState(() => _expandedDinas[dinasId] = !isExpanded),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(14),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    accent.withOpacity(0.08),
+                    accent.withOpacity(0.03),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.vertical(
+                  top: const Radius.circular(14),
+                  bottom: isExpanded
+                      ? Radius.zero
+                      : const Radius.circular(14),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      // Dinas icon
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: accent.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.corporate_fare,
+                            color: accent, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      // Dinas name & code
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              dinasName,
+                              style: TextStyle(
+                                color: accent,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              dinasCode,
+                              style: TextStyle(
+                                color: accent.withOpacity(0.6),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Count badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: accent.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${activities.length} kegiatan',
+                          style: TextStyle(
+                            color: accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        isExpanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        color: accent.withOpacity(0.6),
+                        size: 22,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Stats row
+                  Row(
+                    children: [
+                      _dinasStatChip(
+                        Icons.check_circle_outline,
+                        '${approvedInDinas.length} disetujui',
+                        AppColors.success,
+                      ),
+                      const SizedBox(width: 8),
+                      if (pendingInDinas > 0)
+                        _dinasStatChip(
+                          Icons.hourglass_empty,
+                          '$pendingInDinas pending',
+                          AppColors.goldMid,
+                        ),
+                      const Spacer(),
+                      Text(
+                        _rupiah.format(totalBudgetDinas),
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // ── Activity Items (collapsible) ─────────────────────────────
+          if (isExpanded) ...[
+            Container(
+              height: 0.5,
+              color: accent.withOpacity(0.2),
+            ),
+            ...activities.map((a) => _buildActivityItem(a)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _dinasStatChip(IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Activity Item ────────────────────────────────────────────────────────
   Widget _buildActivityItem(Activity a) {
     final statusColor = _statusColor[a.status] ?? AppColors.textSecondary;
     final statusText = {
@@ -330,12 +583,12 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
         a.status;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.navyCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.goldMid.withOpacity(0.2)),
+        border: Border(
+          bottom: BorderSide(
+              color: AppColors.goldMid.withOpacity(0.08), width: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,15 +601,15 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
                   style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
-                      fontSize: 14),
+                      fontSize: 13),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(6),
@@ -364,50 +617,51 @@ class _GlobalReportScreenState extends State<GlobalReportScreen> {
                 child: Text(statusText,
                     style: TextStyle(
                         color: statusColor,
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600)),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             children: [
               const Icon(Icons.calendar_today_outlined,
-                  size: 12, color: AppColors.textSecondary),
+                  size: 11, color: AppColors.textSecondary),
               const SizedBox(width: 4),
               Text(_dateFmt.format(a.date),
                   style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 12)),
-              const SizedBox(width: 14),
+                      color: AppColors.textSecondary, fontSize: 11)),
+              const SizedBox(width: 12),
               const Icon(Icons.location_on_outlined,
-                  size: 12, color: AppColors.textSecondary),
+                  size: 11, color: AppColors.textSecondary),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(a.location,
                     style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 12),
+                        color: AppColors.textSecondary, fontSize: 11),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ),
+              Text(
+                _rupiah.format(a.budget),
+                style: const TextStyle(
+                    color: AppColors.goldLight,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12),
+              ),
             ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _rupiah.format(a.budget),
-            style: const TextStyle(
-                color: AppColors.goldLight,
-                fontWeight: FontWeight.bold,
-                fontSize: 13),
           ),
         ],
       ),
     );
   }
 
+  // ── Export ────────────────────────────────────────────────────────────────
   Future<void> _export(String type, List<Activity> approved) async {
     if (approved.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Tidak ada kegiatan yang disetujui untuk diekspor'),
+        content:
+            Text('Tidak ada kegiatan yang disetujui untuk diekspor'),
         backgroundColor: AppColors.error,
       ));
       return;

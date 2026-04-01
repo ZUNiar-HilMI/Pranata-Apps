@@ -23,6 +23,19 @@ class AppColors {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Spacing Constants
+// ─────────────────────────────────────────────────────────────────────────────
+class AppSpacing {
+  static const double xxs = 4;
+  static const double xs  = 8;
+  static const double sm  = 12;
+  static const double md  = 16;
+  static const double lg  = 20;
+  static const double xl  = 28;
+  static const double xxl = 32;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Per-Dinas Color Palettes
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -237,7 +250,7 @@ class DinasTheme {
 
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: accent,
-        selectionColor: accent.withOpacity(0.4),
+        selectionColor: accent.withValues(alpha: 0.4),
         selectionHandleColor: accentL,
       ),
 
@@ -334,7 +347,7 @@ class DinasTheme {
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
-              ? accent.withOpacity(0.4)
+               ? accent.withValues(alpha: 0.4)
               : light,
         ),
       ),
@@ -525,7 +538,7 @@ class AppTheme {
       ),
       trackColor: WidgetStateProperty.resolveWith(
         (s) => s.contains(WidgetState.selected)
-            ? AppColors.goldMid.withOpacity(0.4)
+            ? AppColors.goldMid.withValues(alpha: 0.4)
             : AppColors.navyLight,
       ),
     ),
@@ -550,7 +563,7 @@ class AppTheme {
     borderRadius: BorderRadius.circular(10),
     boxShadow: [
       BoxShadow(
-        color: AppColors.goldMid.withOpacity(0.4),
+        color: AppColors.goldMid.withValues(alpha: 0.4),
         blurRadius: 12,
         offset: const Offset(0, 4),
       ),

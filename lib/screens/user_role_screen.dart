@@ -29,7 +29,18 @@ class _UserRoleScreenState extends State<UserRoleScreen> {
 
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
-    final users = await _authService.getAllUsers();
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUser = authProvider.currentUser;
+
+    List<User> users;
+    if (currentUser != null && currentUser.isAdminDinas && currentUser.dinasId != null) {
+      // Admin dinas hanya melihat user dari dinas mereka sendiri
+      users = await _authService.getUsersByDinas(currentUser.dinasId!);
+    } else {
+      // SuperAdmin melihat semua user
+      users = await _authService.getAllUsers();
+    }
+
     setState(() {
       _users = users;
       _isLoading = false;
@@ -207,7 +218,7 @@ class _UserRoleScreenState extends State<UserRoleScreen> {
   }
 
   Future<void> _applyRoleChange(User user, String newRole) async {
-    final success = await _authService.updateUserRole(user.email, newRole);
+    final success = await _authService.updateUserRole(user.email, newRole, dinasId: user.dinasId);
     if (!mounted) return;
     if (success) {
       await _loadUsers();
