@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../lib/services/auth_service.dart';
 import '../../lib/services/otp_service.dart';
-import '../../lib/models/user.dart';
 
 /// Integration tests for the full auth flow:
 /// register → OTP generate → OTP verify → login → logout

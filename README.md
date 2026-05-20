@@ -118,14 +118,21 @@ lib/
    flutter pub get
    ```
 
-3. **Konfigurasi Firebase**
+3. **Siapkan environment file**
+   - Salin file `.env.example` menjadi `.env`
+   - Isi `CLOUDINARY_*` dan `EMAILJS_*` dengan nilai dari akun Anda
+   - Jangan commit file `.env` ke repository
+
+4. **Konfigurasi Firebase secara lokal**
    - Buat project di [Firebase Console](https://console.firebase.google.com/)
    - Aktifkan **Authentication** (Email/Password)
    - Aktifkan **Cloud Firestore**
    - Download `google-services.json` dan letakkan di `android/app/`
-   - Update file `lib/firebase_options.dart` sesuai konfigurasi
+   - Untuk iOS/macOS, download `GoogleService-Info.plist` dan letakkan di folder `ios/Runner/` atau `macos/Runner/`
+   - Gunakan `flutterfire configure` atau `flutter pub run flutterfire_cli configure` untuk menghasilkan `lib/firebase_options.dart` secara lokal
+   - Jangan commit `android/app/google-services.json`, `ios/GoogleService-Info.plist`, `macos/GoogleService-Info.plist`, atau `lib/firebase_options.dart` jika berisi konfigurasi proyek Anda
 
-4. **Konfigurasi Cloudinary**
+5. **Konfigurasi Cloudinary**
    - Buat akun di [Cloudinary](https://cloudinary.com/)
    - Update konfigurasi di `lib/config/cloudinary_config.dart`
 

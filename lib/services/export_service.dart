@@ -446,7 +446,7 @@ class ExportService {
     PdfColor textColor,
     PdfColor borderColor,
   ) {
-    pw.Widget _photoBox(String label, Uint8List? bytes) {
+    pw.Widget photoBox(String label, Uint8List? bytes) {
       return pw.Expanded(
         child: pw.Container(
           margin: const pw.EdgeInsets.symmetric(horizontal: 4),
@@ -519,8 +519,8 @@ class ExportService {
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              _photoBox('FOTO SEBELUM', beforeBytes),
-              _photoBox('FOTO SESUDAH', afterBytes),
+              photoBox('FOTO SEBELUM', beforeBytes),
+              photoBox('FOTO SESUDAH', afterBytes),
             ],
           ),
         ],

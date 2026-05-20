@@ -49,6 +49,7 @@ class TestData {
     String? photoBefore,
     String? photoAfter,
     String userId = 'test-user-1',
+    String dinasId = '',
     String status = 'pending',
   }) {
     return Activity(
@@ -63,6 +64,7 @@ class TestData {
       photoBefore: photoBefore,
       photoAfter: photoAfter,
       userId: userId,
+      dinasId: dinasId,
       status: status,
       createdAt: DateTime(2024, 1, 1),
     );

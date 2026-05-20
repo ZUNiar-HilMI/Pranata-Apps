@@ -46,6 +46,10 @@ app.*.map.json
 
 # Sensitive config files - API keys & credentials
 lib/firebase_options.dart
-lib/config/cloudinary_config.dart
-lib/config/email_config.dart
 android/app/google-services.json
+ios/GoogleService-Info.plist
+macos/GoogleService-Info.plist
+
+# Environment files
+.env
+.env.*

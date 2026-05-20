@@ -1,19 +1,15 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'add_activity_screen.dart';
 import 'reports_screen.dart';
 import 'user_role_screen.dart';
 import 'login_screen.dart';
 import 'admin_verification_screen.dart';
-import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'notifications_screen.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
-import '../services/export_service.dart';
 import '../services/notification_service.dart';
 import '../models/activity.dart';
 import '../widgets/offline_banner.dart';
@@ -80,7 +76,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         )
         .listen((count) {
       if (mounted) {
-        final previousCount = _notificationCount;
         setState(() => _notificationCount = count);
 
         // Show popup for member when unread notifications exist
@@ -192,18 +187,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (context) => DraggableScrollableSheet(
-            initialChildSize: 0.95,
-            minChildSize: 0.5,
-            maxChildSize: 0.95,
-            builder: (_, controller) => Container(
-              decoration: const BoxDecoration(
-                color: AppColors.navyDark,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          builder: (context) {
+            final th = Theme.of(context);
+            return DraggableScrollableSheet(
+              initialChildSize: 0.95,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              builder: (_, controller) => Container(
+                decoration: BoxDecoration(
+                  color: th.scaffoldBackgroundColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: const AddActivityScreen(),
               ),
-              child: const AddActivityScreen(),
-            ),
-          ),
+            );
+          },
         );
         // If activity was saved, refresh the recent items list
         if (result == true && mounted) {
@@ -218,16 +216,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       text: currentBudget.toStringAsFixed(0),
     );
 
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        backgroundColor: theme.dialogTheme.backgroundColor ?? theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: theme.colorScheme.primary, width: 0.4),
+        ),
+        title: Row(
           children: [
-            Icon(Icons.edit, color: Color(0xFF2563EB)),
-            SizedBox(width: 8),
+            Icon(Icons.edit, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
             Text(
-              'Edit Total Budget',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              'Edit Total Anggaran',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
             ),
           ],
         ),
@@ -235,40 +239,43 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Enter new total budget limit:',
-              style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+            Text(
+              'Masukkan batas total anggaran baru:',
+              style: TextStyle(fontSize: 14, color: theme.textTheme.bodySmall?.color),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: budgetController,
               keyboardType: TextInputType.number,
+              style: TextStyle(color: theme.textTheme.bodyLarge?.color),
               decoration: InputDecoration(
-                labelText: 'Total Budget (IDR)',
+                labelText: 'Total Anggaran (IDR)',
+                labelStyle: TextStyle(color: theme.textTheme.bodySmall?.color),
                 prefixText: 'Rp ',
+                prefixStyle: TextStyle(color: theme.textTheme.bodyLarge?.color),
+                filled: true,
+                fillColor: theme.scaffoldBackgroundColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.5)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
                 ),
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Suggested: Rp 1,000,000,000 (1 Billion)',
-              style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+            Text(
+              'Saran: Rp 1.000.000.000 (1 Miliar)',
+              style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7)),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Color(0xFF6B7280)),
-            ),
+            child: Text('Batal', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -278,30 +285,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 await storageService.setTotalBudgetLimit(newBudget);
                 if (mounted) {
                   Navigator.pop(context);
-                  setState(() {}); // Refresh the UI
+                  setState(() {});
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        'Total budget updated to ${_formatCurrency(newBudget)}',
-                      ),
-                      backgroundColor: Colors.green,
+                      content: Text('Total anggaran diperbarui ke ${_formatCurrency(newBudget)}'),
+                      backgroundColor: AppColors.success,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   );
                 }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter a valid budget amount'),
-                    backgroundColor: Colors.red,
+                  SnackBar(
+                    content: const Text('Masukkan jumlah anggaran yang valid'),
+                    backgroundColor: theme.colorScheme.error,
                   ),
                 );
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              foregroundColor: Colors.white,
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
             ),
-            child: const Text('Save'),
+            child: const Text('Simpan'),
           ),
         ],
       ),
@@ -314,16 +321,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       currentYear - 2020 + 1,
       (index) => currentYear - index,
     );
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final dinasId = authProvider.dinasId;
-    final accent = DinasTheme.primaryAccent(dinasId);
-    final accentL = DinasTheme.accentLight(dinasId);
+    final theme = Theme.of(context);
 
     showDialog(
       context: context,
       builder: (context) => Dialog(
+        backgroundColor: theme.dialogTheme.backgroundColor ?? theme.colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: theme.colorScheme.primary, width: 0.4),
         ),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -336,25 +342,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.calendar_today, color: accent, size: 20),
+                      Icon(Icons.calendar_today, color: theme.colorScheme.primary, size: 20),
                       const SizedBox(width: 8),
                       Text(
                         'Pilih Tahun',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: accentL,
+                          color: theme.colorScheme.secondary,
                         ),
                       ),
                     ],
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, color: Colors.white.withOpacity(0.6)),
+                    icon: Icon(Icons.close, color: theme.textTheme.bodySmall?.color),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              Divider(color: accent.withOpacity(0.3)),
+              Divider(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
@@ -362,30 +368,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   itemBuilder: (context, index) {
                     final year = years[index];
                     final isSelected = year == _selectedYear;
-                    
                     return InkWell(
                       onTap: () {
-                        setState(() {
-                          _selectedYear = year;
-                        });
+                        setState(() => _selectedYear = year);
                         Navigator.pop(context);
                       },
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? accent.withOpacity(0.15)
+                              ? theme.colorScheme.primary.withValues(alpha: 0.15)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           border: isSelected
-                              ? Border.all(
-                                  color: accent,
-                                  width: 2,
-                                )
+                              ? Border.all(color: theme.colorScheme.primary, width: 2)
                               : null,
                         ),
                         child: Row(
@@ -397,16 +394,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 fontSize: 16,
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                 color: isSelected
-                                    ? accentL
-                                    : Colors.white.withOpacity(0.85),
+                                    ? theme.colorScheme.secondary
+                                    : theme.textTheme.bodyMedium?.color,
                               ),
                             ),
                             if (isSelected)
-                              Icon(
-                                Icons.check_circle,
-                                color: accent,
-                                size: 20,
-                              ),
+                              Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 20),
                           ],
                         ),
                       ),
@@ -423,10 +416,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.navyDark,
-      drawer: _buildDrawer(),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      drawer: _buildDrawer(context),
       body: Stack(
         children: [
           // Offline Banner (at top, above everything)
@@ -455,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Admin-only: pending activities banner
-                            if (isAdmin) _buildAdminPendingBanner(),
+                            if (isAdmin) _buildAdminPendingBanner(context),
                             if (isAdmin) const SizedBox(height: 12),
 
                             // Statistics Cards
@@ -595,14 +589,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       bottomNavigationBar: _buildBottomNav(),
       floatingActionButton: FloatingActionButton(
         onPressed: _toggleSpeedDial,
-        backgroundColor: AppColors.goldMid,
+        backgroundColor: theme.colorScheme.primary,
         elevation: 6,
         child: RotationTransition(
           turns: _rotationAnimation,
           child: Icon(
             _isSpeedDialOpen ? Icons.close : Icons.add,
             size: 28,
-            color: AppColors.navyDark,
+            color: theme.colorScheme.onPrimary,
           ),
         ),
       ),
@@ -614,13 +608,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   // DRAWER — full profile panel
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildDrawer() {
+  Widget _buildDrawer(BuildContext context) {
+    final theme = Theme.of(context);
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
         final user = authProvider.currentUser;
         final isAdmin = user?.isAdminDinas ?? false;
         return Drawer(
-          backgroundColor: AppColors.navyDark,
+          backgroundColor: theme.scaffoldBackgroundColor,
           child: Column(
             children: [
               // ── Scrollable profile content ────────────────────────────────
@@ -637,20 +632,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: AppColors.navyCard,
+                            color: theme.cardTheme.color ?? theme.colorScheme.surface,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.goldMid.withOpacity(0.3)),
+                            border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
                           ),
                           child: Column(
                             children: [
-                              _buildDrawerInfoRow(Icons.mail_outline, 'EMAIL', user?.email ?? '-'),
-                              Container(height: 0.4, margin: const EdgeInsets.symmetric(horizontal: 16), color: AppColors.goldMid.withOpacity(0.25)),
+                              _buildDrawerInfoRow(Icons.mail_outline, 'EMAIL', user?.email ?? '-', context),
+                              Container(height: 0.4, margin: const EdgeInsets.symmetric(horizontal: 16), color: theme.colorScheme.primary.withValues(alpha: 0.25)),
                                _buildDrawerInfoRow(
                                 Icons.corporate_fare,
                                 'DINAS',
                                 isAdmin
                                     ? DinasTheme.dinasLabel(user?.dinasId)
                                     : DinasTheme.dinasLabel(user?.dinasId),
+                                context
                               ),
                             ],
                           ),
@@ -663,8 +659,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Statistik',
-                                style: TextStyle(color: AppColors.goldLight, fontSize: 13, fontWeight: FontWeight.bold)),
+                            Text('Statistik',
+                                style: TextStyle(color: theme.colorScheme.primary, fontSize: 13, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 10),
                             FutureBuilder<List<Activity>>(
                               future: isAdmin
@@ -676,14 +672,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 final pending = all.where((a) => a.status == 'pending').length;
                                 return Row(
                                   children: [
-                                    Expanded(child: _buildDrawerStatCard('Total', all.length.toString(), Icons.list_alt, AppColors.goldLight)),
+                                    Expanded(child: _buildDrawerStatCard('Total', all.length.toString(), Icons.list_alt, theme.colorScheme.primary, context)),
                                     const SizedBox(width: 8),
-                                    Expanded(child: _buildDrawerStatCard('Disetujui', approved.toString(), Icons.check_circle_outline, AppColors.success)),
+                                    Expanded(child: _buildDrawerStatCard('Disetujui', approved.toString(), Icons.check_circle_outline, theme.colorScheme.primary, context)), // Assuming no specific success color in standard theme
                                     const SizedBox(width: 8),
                                     Expanded(child: _buildDrawerStatCard(
                                       'Pending', pending.toString(),
                                       Icons.hourglass_top_outlined,
-                                      (isAdmin && pending > 0) ? AppColors.error : AppColors.goldMid,
+                                      (isAdmin && pending > 0) ? theme.colorScheme.error : theme.colorScheme.secondary,
+                                      context
                                     )),
                                   ],
                                 );
@@ -699,22 +696,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Pengaturan Akun',
-                                style: TextStyle(color: AppColors.goldLight, fontSize: 13, fontWeight: FontWeight.bold)),
+                            Text('Pengaturan Akun',
+                                style: TextStyle(color: theme.colorScheme.primary, fontSize: 13, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 10),
                             Container(
                               decoration: BoxDecoration(
-                                color: AppColors.navyCard,
+                                color: theme.cardTheme.color ?? theme.colorScheme.surface,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: AppColors.goldMid.withOpacity(0.3)),
+                                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
                               ),
                               child: Column(
                                 children: [
-                                  _buildDrawerMenuItem(Icons.photo_camera_outlined, 'Ganti Foto Profil', _showPhotoSourceSheet),
-                                  _drawerMenuDivider(),
-                                  _buildDrawerMenuItem(Icons.lock_outline, 'Keamanan & Password', _showChangePasswordSheet),
-                                  _drawerMenuDivider(),
-                                  _buildDrawerMenuItem(Icons.info_outline, 'Tentang Aplikasi', _showAboutSheet),
+                                  _buildDrawerMenuItem(Icons.photo_camera_outlined, 'Ganti Foto Profil', _showPhotoSourceSheet, context),
+                                  _drawerMenuDivider(context),
+                                  _buildDrawerMenuItem(Icons.lock_outline, 'Keamanan & Password', _showChangePasswordSheet, context),
+                                  _drawerMenuDivider(context),
+                                  _buildDrawerMenuItem(Icons.info_outline, 'Tentang Aplikasi', _showAboutSheet, context),
                                 ],
                               ),
                             ),
@@ -731,8 +728,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               // ── Logout (fixed bottom) ─────────────────────────────────────
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: AppColors.goldMid, width: 0.3)),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: theme.dividerColor, width: 0.3)),
                 ),
                 child: SizedBox(
                   width: double.infinity,
@@ -748,11 +745,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         );
                       }
                     },
-                    icon: const Icon(Icons.logout, color: AppColors.error, size: 18),
-                    label: const Text('Keluar',
-                        style: TextStyle(color: AppColors.error, fontSize: 14, fontWeight: FontWeight.bold)),
+                    icon: Icon(Icons.logout, color: theme.colorScheme.error, size: 18),
+                    label: Text('Keluar',
+                        style: TextStyle(color: theme.colorScheme.error, fontSize: 14, fontWeight: FontWeight.bold)),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.error, width: 1),
+                      side: BorderSide(color: theme.colorScheme.error, width: 1),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
@@ -768,15 +765,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   // ── Drawer: profile header ────────────────────────────────────────────────
   Widget _buildDrawerProfileHeader(user, AuthProvider authProvider) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.navyMid, AppColors.navyLight],
-        ),
-      ),
+    return Builder(
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [theme.colorScheme.surface, theme.scaffoldBackgroundColor],
+            ),
+          ),
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -786,7 +786,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
-                  icon: const Icon(Icons.close, color: AppColors.goldLight, size: 22),
+                  icon: Icon(Icons.close, color: theme.colorScheme.primary, size: 22),
                   onPressed: () => Navigator.pop(context),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -803,14 +803,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       height: 94,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.goldMid, width: 2.5),
+                        border: Border.all(color: theme.colorScheme.primary, width: 2.5),
                       ),
                       child: ClipOval(
                         child: _isUploadingPhoto
                             ? Container(
-                                color: AppColors.navyMid,
-                                child: const Center(
-                                  child: CircularProgressIndicator(color: AppColors.goldMid, strokeWidth: 2.5),
+                                color: theme.colorScheme.surface,
+                                child: Center(
+                                  child: CircularProgressIndicator(color: theme.colorScheme.primary, strokeWidth: 2.5),
                                 ),
                               )
                             : (user?.photoUrl != null && user!.photoUrl!.isNotEmpty)
@@ -818,13 +818,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                     user.photoUrl!,
                                     fit: BoxFit.cover,
                                     loadingBuilder: (ctx, child, prog) => prog == null
-                                        ? child
-                                        : Container(
-                                            color: AppColors.navyMid,
-                                            child: const Center(
-                                              child: CircularProgressIndicator(color: AppColors.goldMid, strokeWidth: 2),
+                                          ? child
+                                          : Container(
+                                              color: theme.colorScheme.surface,
+                                              child: Center(
+                                                child: CircularProgressIndicator(color: theme.colorScheme.primary, strokeWidth: 2),
+                                              ),
                                             ),
-                                          ),
                                     errorBuilder: (ctx, _, __) => _drawerDefaultAvatar(user?.fullName),
                                   )
                                 : _drawerDefaultAvatar(user?.fullName),
@@ -838,11 +838,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
-                            color: AppColors.goldMid,
+                            color: theme.colorScheme.primary,
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.navyMid, width: 2),
+                            border: Border.all(color: theme.colorScheme.surface, width: 2),
                           ),
-                          child: const Icon(Icons.camera_alt, color: AppColors.navyDark, size: 13),
+                          child: Icon(Icons.camera_alt, color: theme.colorScheme.onPrimary, size: 13),
                         ),
                       ),
                   ],
@@ -851,20 +851,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               const SizedBox(height: 12),
               Text(
                 user?.fullName ?? 'User',
-                style: const TextStyle(color: AppColors.goldLight, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(color: theme.colorScheme.primary, fontSize: 18, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.goldMid.withOpacity(0.15),
+                  color: theme.colorScheme.primary.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.goldMid.withOpacity(0.4)),
+                  border: Border.all(color: theme.colorScheme.primary.withOpacity(0.4)),
                 ),
                 child: Text(
                   user?.isAdminDinas == true ? 'Administrator Dinas' : 'Member',
-                  style: const TextStyle(color: AppColors.goldMid, fontSize: 11, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: theme.colorScheme.primary, fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -872,23 +872,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
       ),
     );
-  }
-
-  Widget _drawerDefaultAvatar(String? name) {
-    return Container(
-      color: AppColors.navyMid,
-      child: Center(
-        child: Text(
-          (name != null && name.isNotEmpty)
-              ? name.trim().split(' ').map((w) => w[0]).take(2).join().toUpperCase()
-              : 'U',
-          style: const TextStyle(color: AppColors.goldLight, fontSize: 28, fontWeight: FontWeight.bold),
-        ),
-      ),
+      }
     );
   }
 
-  Widget _buildDrawerInfoRow(IconData icon, String label, String value) {
+  Widget _drawerDefaultAvatar(String? name) {
+    return Builder(
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Container(
+          color: theme.colorScheme.surface,
+          child: Center(
+            child: Text(
+              (name != null && name.isNotEmpty)
+                  ? name.trim().split(' ').map((w) => w[0]).take(2).join().toUpperCase()
+                  : 'U',
+              style: TextStyle(color: theme.colorScheme.primary, fontSize: 28, fontWeight: FontWeight.bold),
+            ),
+          ),
+        );
+      }
+    );
+  }
+
+  Widget _buildDrawerInfoRow(IconData icon, String label, String value, BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
@@ -896,10 +904,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: AppColors.goldMid.withOpacity(0.12),
+              color: theme.colorScheme.primary.withOpacity(0.12),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: AppColors.goldMid, size: 16),
+            child: Icon(icon, color: theme.colorScheme.primary, size: 16),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -907,11 +915,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 1.2)),
+                    style: TextStyle(
+                        color: theme.textTheme.bodySmall?.color, fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 1.2)),
                 const SizedBox(height: 2),
                 Text(value,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontSize: 13, fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis),
               ],
             ),
@@ -921,13 +929,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildDrawerStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildDrawerStatCard(String title, String value, IconData icon, Color color, BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
       decoration: BoxDecoration(
-        color: AppColors.navyCard,
+        color: theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.goldMid.withOpacity(0.25)),
+        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.25)),
       ),
       child: Column(
         children: [
@@ -936,14 +945,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
           Text(title,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w500),
+              style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 9, fontWeight: FontWeight.w500),
               textAlign: TextAlign.center),
         ],
       ),
     );
   }
 
-  Widget _buildDrawerMenuItem(IconData icon, String title, VoidCallback onTap) {
+  Widget _buildDrawerMenuItem(IconData icon, String title, VoidCallback onTap, BuildContext context) {
+    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -951,21 +961,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.goldMid, size: 20),
+            Icon(icon, color: theme.colorScheme.primary, size: 20),
             const SizedBox(width: 12),
             Expanded(
                 child: Text(title,
-                    style: const TextStyle(
-                        color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500))),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 18),
+                    style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color, fontSize: 14, fontWeight: FontWeight.w500))),
+            Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color, size: 18),
           ],
         ),
       ),
     );
   }
 
-  Widget _drawerMenuDivider() =>
-      Container(height: 0.4, margin: const EdgeInsets.symmetric(horizontal: 14), color: AppColors.goldMid.withOpacity(0.25));
+  Widget _drawerMenuDivider(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(height: 0.4, margin: const EdgeInsets.symmetric(horizontal: 14), color: theme.colorScheme.primary.withOpacity(0.25));
+  }
 
   // ── Photo upload ──────────────────────────────────────────────────────────
   Future<void> _pickAndUploadPhoto(ImageSource source) async {
@@ -1017,13 +1029,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showPhotoSourceSheet() {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.navyCard,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color ?? theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
@@ -1033,17 +1046,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.goldMid.withOpacity(0.35), borderRadius: BorderRadius.circular(2)),
+                color: theme.colorScheme.primary.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
             const SizedBox(height: 20),
-            const Text('Pilih Sumber Foto',
-                style: TextStyle(color: AppColors.goldLight, fontSize: 17, fontWeight: FontWeight.bold)),
+            Text('Pilih Sumber Foto',
+                style: TextStyle(
+                    color: theme.colorScheme.secondary, fontSize: 17, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-            _buildPhotoSourceTile(Icons.photo_library_outlined, 'Galeri', 'Pilih dari galeri foto',
-                () => _pickAndUploadPhoto(ImageSource.gallery)),
+            _buildPhotoSourceTile(
+                Icons.photo_library_outlined, 'Galeri', 'Pilih dari galeri foto',
+                () => _pickAndUploadPhoto(ImageSource.gallery), theme),
             const SizedBox(height: 10),
-            _buildPhotoSourceTile(Icons.camera_alt_outlined, 'Kamera', 'Ambil foto baru',
-                () => _pickAndUploadPhoto(ImageSource.camera)),
+            _buildPhotoSourceTile(
+                Icons.camera_alt_outlined, 'Kamera', 'Ambil foto baru',
+                () => _pickAndUploadPhoto(ImageSource.camera), theme),
           ],
         ),
       ),
@@ -1051,37 +1069,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildPhotoSourceTile(
-      IconData icon, String label, String sub, VoidCallback onTap) {
+      IconData icon, String label, String sub, VoidCallback onTap, ThemeData theme) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.navyMid,
+          color: theme.scaffoldBackgroundColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.goldMid.withOpacity(0.25)),
+          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.25)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.goldMid.withOpacity(0.12), shape: BoxShape.circle),
-              child: Icon(icon, color: AppColors.goldMid, size: 22),
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: theme.colorScheme.primary, size: 22),
             ),
             const SizedBox(width: 14),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: const TextStyle(
-                        color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
-                Text(sub, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                    style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600)),
+                Text(sub,
+                    style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 12)),
               ],
             ),
             const Spacer(),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
+            Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color, size: 20),
           ],
         ),
       ),
@@ -1096,6 +1119,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final confirmCtrl = TextEditingController();
     bool showCurrent = false, showNew = false, showConfirm = false, isLoading = false;
 
+    final th = Theme.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1104,9 +1128,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         builder: (ctx, setModal) => Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
-            decoration: const BoxDecoration(
-              color: AppColors.navyCard,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            decoration: BoxDecoration(
+              color: th.cardTheme.color ?? th.colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             ),
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
             child: Form(
@@ -1117,23 +1141,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 children: [
                   Center(
                     child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: AppColors.goldMid.withOpacity(0.35),
-                            borderRadius: BorderRadius.circular(2))),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: th.colorScheme.primary.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
-                  const Text('Ganti Password',
-                      style: TextStyle(color: AppColors.goldLight, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Ganti Password',
+                      style: TextStyle(
+                          color: th.colorScheme.secondary, fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
-                  const Text('Masukkan password lama dan password baru Anda',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  Text('Masukkan password lama dan password baru Anda',
+                      style: TextStyle(color: th.textTheme.bodySmall?.color, fontSize: 12)),
                   const SizedBox(height: 24),
                   _drawerPasswordField(
                     controller: currentCtrl, label: 'Password Saat Ini',
                     obscure: !showCurrent, toggle: () => setModal(() => showCurrent = !showCurrent),
                     validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                    theme: th,
                   ),
                   const SizedBox(height: 14),
                   _drawerPasswordField(
@@ -1144,6 +1172,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       if (v.length < 6) return 'Minimal 6 karakter';
                       return null;
                     },
+                    theme: th,
                   ),
                   const SizedBox(height: 14),
                   _drawerPasswordField(
@@ -1154,6 +1183,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       if (v != newCtrl.text) return 'Password tidak cocok';
                       return null;
                     },
+                    theme: th,
                   ),
                   const SizedBox(height: 28),
                   SizedBox(
@@ -1201,19 +1231,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               }
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.goldMid,
-                        disabledBackgroundColor: AppColors.navyLight,
+                        backgroundColor: th.colorScheme.primary,
+                        disabledBackgroundColor: th.colorScheme.primary.withValues(alpha: 0.3),
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
                       child: isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20, width: 20,
-                              child: CircularProgressIndicator(color: AppColors.navyDark, strokeWidth: 2.5))
-                          : const Text('Simpan Password',
+                              child: CircularProgressIndicator(color: th.colorScheme.onPrimary, strokeWidth: 2.5))
+                          : Text('Simpan Password',
                               style: TextStyle(
-                                  color: AppColors.navyDark, fontSize: 15, fontWeight: FontWeight.bold)),
+                                  color: th.colorScheme.onPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -1231,27 +1261,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     required bool obscure,
     required VoidCallback toggle,
     required String? Function(String?) validator,
+    required ThemeData theme,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscure,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontSize: 14),
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        labelStyle: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 13),
         filled: true,
-        fillColor: AppColors.navyMid,
+        fillColor: theme.scaffoldBackgroundColor,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.goldMid.withOpacity(0.3))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.goldMid.withOpacity(0.3))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.goldMid, width: 1.5)),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.error)),
-        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.error, width: 1.5)),
-        errorStyle: const TextStyle(color: AppColors.error, fontSize: 11),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.3))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.3))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5)),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.error)),
+        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5)),
+        errorStyle: TextStyle(color: theme.colorScheme.error, fontSize: 11),
         suffixIcon: IconButton(
           icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-              color: AppColors.textSecondary, size: 20),
+              color: theme.textTheme.bodySmall?.color, size: 20),
           onPressed: toggle,
         ),
       ),
@@ -1260,13 +1291,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   // ── About ─────────────────────────────────────────────────────────────────
   void _showAboutSheet() {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.navyCard,
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color ?? theme.colorScheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
@@ -1277,41 +1309,39 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: AppColors.goldMid.withOpacity(0.35),
+                    color: theme.colorScheme.primary.withOpacity(0.35),
                     borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 28),
             Container(
               width: 72, height: 72,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [AppColors.navyMid, AppColors.navyLight],
-                    begin: Alignment.topLeft, end: Alignment.bottomRight),
+                color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.goldMid, width: 2),
+                border: Border.all(color: theme.colorScheme.primary, width: 2),
               ),
-              child: const Icon(Icons.shield_outlined, color: AppColors.goldLight, size: 38),
+              child: Icon(Icons.shield_outlined, color: theme.colorScheme.primary, size: 38),
             ),
             const SizedBox(height: 16),
-            const Text('PRANATA',
+            Text('PRANATA',
                 style: TextStyle(
-                    color: AppColors.goldLight, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 3)),
+                    color: theme.colorScheme.primary, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 3)),
             const SizedBox(height: 4),
-            const Text('Proses Anggaran lan Tata Data',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            Text('Proses Anggaran lan Tata Data',
+                style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 12),
                 textAlign: TextAlign.center),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                  color: AppColors.goldMid.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+                  color: theme.colorScheme.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
               child:
-                  const Text('Versi 2.4.0', style: TextStyle(color: AppColors.goldMid, fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text('Versi 2.4.0', style: TextStyle(color: theme.colorScheme.primary, fontSize: 11, fontWeight: FontWeight.w600)),
             ),
             const SizedBox(height: 24),
-            Container(height: 0.5, color: AppColors.goldMid.withOpacity(0.25)),
+            Container(height: 0.5, color: theme.colorScheme.primary.withOpacity(0.25)),
             const SizedBox(height: 20),
-            const Text('© 2026 Muhammad Zuniar Hilmi. All rights reserved.',
-                style: TextStyle(color: AppColors.textHint, fontSize: 10), textAlign: TextAlign.center),
+            Text('© 2026 Muhammad Zuniar Hilmi. All rights reserved.',
+                style: TextStyle(color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7), fontSize: 10), textAlign: TextAlign.center),
           ],
         ),
       ),
@@ -1322,7 +1352,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
 
   // ── Admin: pending activities banner ──────────────────────────────────────
-  Widget _buildAdminPendingBanner() {
+  Widget _buildAdminPendingBanner(BuildContext context) {
+    final theme = Theme.of(context);
     final storageService = FirestoreService();
     return FutureBuilder<List<Activity>>(
       future: storageService.getActivities(),
@@ -1338,12 +1369,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.goldLight, AppColors.goldDark],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: theme.colorScheme.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -1351,10 +1379,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: AppColors.navyDark.withOpacity(0.2),
+                    color: theme.colorScheme.surface,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.pending_actions, color: AppColors.navyDark, size: 20),
+                  child: Icon(Icons.pending_actions, color: theme.colorScheme.primary, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1363,20 +1391,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     children: [
                       Text(
                         '${pending.length} kegiatan menunggu verifikasi',
-                        style: const TextStyle(
-                          color: AppColors.navyDark,
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Ketuk untuk review dan verifikasi',
-                        style: TextStyle(color: AppColors.navyMid, fontSize: 11),
+                        style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 11),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 14),
+                Icon(Icons.arrow_forward_ios, color: theme.textTheme.bodySmall?.color, size: 14),
               ],
             ),
           ),
@@ -1385,222 +1413,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // ── Admin: export bottom sheet ─────────────────────────────────────────────
-  void _showExportBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setModal) {
-          bool isExporting = false;
-          String? exportingType;
-
-          Future<void> doExport(String type) async {
-            if (isExporting) return;
-            setModal(() {
-              isExporting = true;
-              exportingType = type;
-            });
-            try {
-              final all = await FirestoreService().getActivities();
-              final approved = all.where((a) => a.status == 'approved').toList();
-
-              if (approved.isEmpty) {
-                if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Belum ada kegiatan yang disetujui untuk diekspor.'),
-                    backgroundColor: Color(0xFF64748B),
-                    behavior: SnackBarBehavior.floating,
-                  ));
-                }
-                return;
-              }
-
-              if (type == 'excel') {
-                await ExportService.exportToExcel(approved);
-              } else {
-                await ExportService.exportToPdf(approved);
-              }
-
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Row(children: [
-                    const Icon(Icons.check_circle, color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    Text('Export ${type == 'pdf' ? 'PDF' : 'Excel'} berhasil! (${approved.length} kegiatan)'),
-                  ]),
-                  backgroundColor: const Color(0xFF059669),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ));
-              }
-            } catch (e) {
-              setModal(() {
-                isExporting = false;
-                exportingType = null;
-              });
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Row(children: [
-                    const Icon(Icons.error_outline, color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text('Export gagal: ${e.toString().replaceAll('Exception: ', '')}')),
-                  ]),
-                  backgroundColor: const Color(0xFFEF4444),
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 4),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ));
-              }
-            }
-          }
-
-          return Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Handle
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Export Laporan',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F1629),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Ekspor kegiatan yang sudah disetujui',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                ),
-                const SizedBox(height: 24),
-                // PDF option
-                _buildExportOption(
-                  icon: isExporting && exportingType == 'pdf'
-                      ? Icons.hourglass_top
-                      : Icons.picture_as_pdf,
-                  iconColor: const Color(0xFFEF4444),
-                  iconBg: const Color(0xFFFEE2E2),
-                  title: isExporting && exportingType == 'pdf'
-                      ? 'Membuat PDF...'
-                      : 'Export PDF',
-                  subtitle: 'Preview & cetak laporan format PDF',
-                  onTap: () => doExport('pdf'),
-                ),
-                const SizedBox(height: 12),
-                // Excel option
-                _buildExportOption(
-                  icon: isExporting && exportingType == 'excel'
-                      ? Icons.hourglass_top
-                      : Icons.table_chart,
-                  iconColor: const Color(0xFF059669),
-                  iconBg: const Color(0xFFD1FAE5),
-                  title: isExporting && exportingType == 'excel'
-                      ? 'Membuat Excel...'
-                      : 'Export Excel',
-                  subtitle: 'Simpan & bagikan spreadsheet .xlsx',
-                  onTap: () => doExport('excel'),
-                ),
-                if (isExporting) ...[
-                  const SizedBox(height: 20),
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F1629)),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Sedang memproses data...',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ]),
-                ],
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildExportOption({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: const Color(0xFFF8FAFC),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: iconColor, size: 24),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF0F1629),
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF94A3B8)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildHeader() {
+    final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dinasId = authProvider.dinasId;
-    final accent = DinasTheme.primaryAccent(dinasId);
-    final dark = DinasTheme.darkBg(dinasId);
     final dinasCode = DinasTheme.dinasCode(dinasId);
     final dinasLabel = DinasTheme.dinasLabel(dinasId);
     final isAdmin = authProvider.isAdminDinas;
@@ -1609,16 +1425,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [dark, Color.lerp(dark, accent, 0.20)!],
+          colors: [theme.colorScheme.surface, Color.lerp(theme.colorScheme.surface, theme.colorScheme.primary, 0.20)!],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         border: Border(
-          bottom: BorderSide(color: accent.withOpacity(0.5), width: 1.5),
+          bottom: BorderSide(color: theme.colorScheme.primary.withOpacity(0.5), width: 1.5),
         ),
         boxShadow: [
           BoxShadow(
-            color: accent.withOpacity(0.15),
+            color: theme.colorScheme.primary.withOpacity(0.15),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1632,7 +1448,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             children: [
               // Menu button
               IconButton(
-                icon: Icon(Icons.menu, color: accent, size: 24),
+                icon: Icon(Icons.menu, color: theme.colorScheme.primary, size: 24),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
 
@@ -1645,22 +1461,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                       decoration: BoxDecoration(
-                        color: accent.withOpacity(0.15),
+                        color: theme.colorScheme.primary.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: accent.withOpacity(0.5), width: 1),
+                        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.5), width: 1),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
                             width: 7, height: 7,
-                            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                            decoration: BoxDecoration(color: theme.colorScheme.primary, shape: BoxShape.circle),
                           ),
                           const SizedBox(width: 5),
                           Text(
                             dinasCode,
                             style: TextStyle(
-                              color: accent,
+                              color: theme.colorScheme.primary,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.5,
@@ -1671,12 +1487,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                               decoration: BoxDecoration(
-                                color: accent.withOpacity(0.2),
+                                color: theme.colorScheme.primary.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 'ADMIN',
-                                style: TextStyle(color: accent, fontSize: 8, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: theme.colorScheme.primary, fontSize: 8, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
@@ -1689,7 +1505,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.85),
+                        color: theme.textTheme.bodyMedium?.color,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         letterSpacing: 0.3,
@@ -1705,9 +1521,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: accent.withOpacity(0.12),
+                    color: theme.colorScheme.primary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: accent.withOpacity(0.4), width: 0.5),
+                    border: Border.all(color: theme.colorScheme.primary.withOpacity(0.4), width: 0.5),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1715,13 +1531,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       Text(
                         _selectedYear.toString(),
                         style: TextStyle(
-                          color: accent,
+                          color: theme.colorScheme.primary,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(width: 2),
-                      Icon(Icons.expand_more, color: accent, size: 16),
+                      Icon(Icons.expand_more, color: theme.colorScheme.primary, size: 16),
                     ],
                   ),
                 ),
@@ -1767,7 +1583,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
         final totalActivities = data['totalActivities'] as int;
         final totalBudget = data['totalBudget'] as double;
-        final approvedActivities = data['approvedActivities'] as int;
+        // approvedActivities available in data['approvedActivities'] but not displayed directly
         final totalBudgetLimit = data['totalBudgetLimit'] as double;
         
         // Calculate used budget from approved activities only
@@ -1784,39 +1600,43 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           padding: EdgeInsets.zero,
           children: [
             _buildStatCard(
+              context: context,
               icon: Icons.list_alt,
               label: 'Total Aktivitas',
               value: totalActivities.toString(),
-              color: AppColors.goldLight,
-              bgColor: AppColors.goldMid.withOpacity(0.15),
+              color: Theme.of(context).colorScheme.primary,
+              bgColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
             ),
             GestureDetector(
               onTap: currentUser?.isAdminDinas == true
                   ? () => _showEditTotalBudgetDialog(totalBudgetLimit)
                   : null,
               child: _buildStatCard(
+                context: context,
                 icon: Icons.attach_money,
                 label: currentUser?.isAdminDinas == true 
                     ? 'Total Budget (Tap)' 
                     : 'Total Budget',
                 value: _formatCurrency(totalBudgetLimit),
-                color: AppColors.goldLight,
-                bgColor: AppColors.goldMid.withOpacity(0.15),
+                color: Theme.of(context).colorScheme.primary,
+                bgColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
               ),
             ),
             _buildStatCard(
+              context: context,
               icon: Icons.pie_chart,
               label: 'Budget Terpakai',
               value: _formatCurrency(usedBudget),
-              color: AppColors.goldLight,
-              bgColor: AppColors.goldMid.withOpacity(0.15),
+              color: Theme.of(context).colorScheme.primary,
+              bgColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
             ),
             _buildStatCard(
+              context: context,
               icon: Icons.account_balance_wallet,
               label: 'Sisa Budget',
               value: _formatCurrency(remainingBudget),
-              color: AppColors.goldMid,
-              bgColor: AppColors.goldMid.withOpacity(0.25),
+              color: Theme.of(context).colorScheme.primary,
+              bgColor: Theme.of(context).colorScheme.primary.withOpacity(0.25),
               isHighlight: true,
             ),
           ],
@@ -1835,34 +1655,46 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       childAspectRatio: 1.2,
       padding: EdgeInsets.zero,
       children: [
-        _buildStatCard(
-          icon: Icons.list_alt,
-          label: 'Total Aktivitas',
-          value: '...',
-          color: AppColors.goldLight,
-          bgColor: AppColors.goldMid.withOpacity(0.15),
+        Builder(
+          builder: (context) => _buildStatCard(
+            context: context,
+            icon: Icons.list_alt,
+            label: 'Total Aktivitas',
+            value: '...',
+            color: Theme.of(context).colorScheme.primary,
+            bgColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+          ),
         ),
-        _buildStatCard(
-          icon: Icons.attach_money,
-          label: 'Total Budget',
-          value: '...',
-          color: AppColors.goldLight,
-          bgColor: AppColors.goldMid.withOpacity(0.15),
+        Builder(
+          builder: (context) => _buildStatCard(
+            context: context,
+            icon: Icons.attach_money,
+            label: 'Total Budget',
+            value: '...',
+            color: Theme.of(context).colorScheme.primary,
+            bgColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+          ),
         ),
-        _buildStatCard(
-          icon: Icons.pie_chart,
-          label: 'Budget Terpakai',
-          value: '...',
-          color: AppColors.goldLight,
-          bgColor: AppColors.goldMid.withOpacity(0.15),
+        Builder(
+          builder: (context) => _buildStatCard(
+            context: context,
+            icon: Icons.pie_chart,
+            label: 'Budget Terpakai',
+            value: '...',
+            color: Theme.of(context).colorScheme.primary,
+            bgColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+          ),
         ),
-        _buildStatCard(
-          icon: Icons.account_balance_wallet,
-          label: 'Sisa Budget',
-          value: '...',
-          color: AppColors.goldMid,
-          bgColor: AppColors.goldMid.withOpacity(0.25),
-          isHighlight: true,
+        Builder(
+          builder: (context) => _buildStatCard(
+            context: context,
+            icon: Icons.account_balance_wallet,
+            label: 'Sisa Budget',
+            value: '...',
+            color: Theme.of(context).colorScheme.primary,
+            bgColor: Theme.of(context).colorScheme.primary.withOpacity(0.25),
+            isHighlight: true,
+          ),
         ),
       ],
     );
@@ -1881,6 +1713,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildStatCard({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String value,
@@ -1888,12 +1721,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     required Color bgColor,
     bool isHighlight = false,
   }) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isHighlight ? AppColors.goldMid.withOpacity(0.2) : AppColors.navyCard,
+        color: isHighlight ? theme.colorScheme.primary.withOpacity(0.2) : theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.goldMid.withOpacity(isHighlight ? 0.5 : 0.25)),
+        border: Border.all(color: theme.colorScheme.primary.withOpacity(isHighlight ? 0.5 : 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1902,7 +1736,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: isHighlight ? Colors.white.withOpacity(0.8) : bgColor,
+              color: isHighlight ? theme.colorScheme.surface : bgColor,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -1913,7 +1747,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              color: theme.textTheme.bodySmall?.color,
             ),
           ),
           const SizedBox(height: 4),
@@ -1922,7 +1756,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: isHighlight ? AppColors.goldLight : AppColors.textPrimary,
+              color: isHighlight ? theme.colorScheme.primary : theme.textTheme.bodyLarge?.color,
             ),
           ),
         ],
@@ -1931,6 +1765,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildYearlyChart() {
+    final theme = Theme.of(context);
     final months = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUser = authProvider.currentUser;
@@ -1939,9 +1774,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.navyCard,
+        color: theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.goldMid.withOpacity(0.3)),
+        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
       ),
       child: Column(
         children: [
@@ -1951,26 +1786,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Statistik Tahunan',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.goldLight,
+                      color: theme.colorScheme.primary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Jan - Des $_selectedYear',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
+                      color: theme.textTheme.bodySmall?.color,
                     ),
                   ),
                 ],
               ),
               IconButton(
-                icon: const Icon(Icons.more_horiz, color: Color(0xFF6B7280)),
+                icon: Icon(Icons.more_horiz, color: theme.iconTheme.color),
                 onPressed: () {},
               ),
             ],
@@ -2018,17 +1853,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               width: 8,
                               height: 100 * heights[index],
                               decoration: BoxDecoration(
-                                color: AppColors.goldMid,
+                                color: theme.colorScheme.primary,
                                 borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               months[index],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w500,
-                                color: AppColors.textSecondary,
+                                color: theme.textTheme.bodySmall?.color,
                               ),
                             ),
                           ],
@@ -2047,6 +1882,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildRecentItems() {
+    final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUser = authProvider.currentUser;
     final storageService = FirestoreService();
@@ -2066,22 +1902,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Kegiatan Terbaru',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.goldLight,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
                 TextButton(
                   onPressed: () {},
-                  child: const Text(
+                  child: Text(
                     'Lihat Semua',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.goldMid,
+                      color: theme.colorScheme.primary,
                     ),
                   ),
                 ),
@@ -2092,18 +1928,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppColors.navyCard,
+                  color: theme.cardTheme.color ?? theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.goldMid.withOpacity(0.25)),
+                  border: Border.all(color: theme.colorScheme.primary.withOpacity(0.25)),
                 ),
-                child: const Center(
+                child: Center(
                   child: Column(
                     children: [
-                      Icon(Icons.inbox_outlined, size: 40, color: AppColors.textSecondary),
-                      SizedBox(height: 8),
+                      Icon(Icons.inbox_outlined, size: 40, color: theme.textTheme.bodySmall?.color),
+                      const SizedBox(height: 8),
                       Text(
                         'Belum ada kegiatan',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 13),
                       ),
                     ],
                   ),
@@ -2118,11 +1954,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildActivityCard(Activity activity, FirestoreService storageService) {
+    final theme = Theme.of(context);
     final statusColor = activity.status == 'approved'
-        ? const Color(0xFF22C55E)
+        ? theme.colorScheme.primary // Using primary to represent success dynamically or keeping specific colors
         : activity.status == 'rejected'
-            ? const Color(0xFFEF4444)
-            : const Color(0xFFF59E0B);
+            ? theme.colorScheme.error
+            : theme.colorScheme.secondary;
     final statusIcon = activity.status == 'approved'
         ? Icons.check_circle_outline
         : activity.status == 'rejected'
@@ -2170,8 +2007,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, true),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEF4444),
-                  foregroundColor: Colors.white,
+                  backgroundColor: theme.colorScheme.error,
+                  foregroundColor: theme.colorScheme.onError,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 child: const Text('Hapus'),
@@ -2202,9 +2039,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.navyCard,
+          color: theme.cardTheme.color ?? theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.goldMid.withOpacity(0.25)),
+          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.25)),
         ),
         child: Row(
           children: [
@@ -2224,10 +2061,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 children: [
                   Text(
                     activity.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: theme.textTheme.bodyLarge?.color,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -2235,7 +2072,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   const SizedBox(height: 2),
                   Text(
                     '${activity.date.day}/${activity.date.month}/${activity.date.year}',
-                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    style: TextStyle(fontSize: 11, color: theme.textTheme.bodySmall?.color),
                   ),
                 ],
               ),
@@ -2245,10 +2082,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               children: [
                 Text(
                   'Rp ${activity.budget.toStringAsFixed(0)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F2937),
+                    color: theme.textTheme.bodyLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -2275,83 +2112,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // Legacy method kept for reference (no longer used)
-  Widget _buildRecentItem({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
-    required String title,
-    required String date,
-    required String amount,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: iconBg,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  date,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            amount,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildBottomNav() {
+    final theme = Theme.of(context);
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
       notchMargin: 6,
-      color: AppColors.navyMid,
+      color: theme.colorScheme.surface,
       elevation: 8,
       child: SizedBox(
         height: 56,
@@ -2370,6 +2136,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildNavItem(IconData icon, String label, int index, {int badgeCount = 0}) {
+    final theme = Theme.of(context);
     final isSelected = _selectedIndex == index;
     return InkWell(
       onTap: () async {
@@ -2413,7 +2180,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             children: [
               Icon(
                 icon,
-                color: isSelected ? AppColors.goldLight : AppColors.textSecondary,
+                color: isSelected ? theme.colorScheme.primary : theme.iconTheme.color,
                 size: 24,
               ),
               if (badgeCount > 0)
@@ -2424,15 +2191,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     padding: const EdgeInsets.all(2),
                     constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                     decoration: BoxDecoration(
-                      color: AppColors.error,
+                      color: theme.colorScheme.error,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.navyMid, width: 1.5),
+                      border: Border.all(color: theme.colorScheme.surface, width: 1.5),
                     ),
                     child: Text(
                       badgeCount > 99 ? '99+' : '$badgeCount',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: theme.colorScheme.onError,
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
                         height: 1.1,
@@ -2448,7 +2215,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             style: TextStyle(
               fontSize: 10,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              color: isSelected ? AppColors.goldLight : AppColors.textSecondary,
+              color: isSelected ? theme.colorScheme.primary : theme.textTheme.bodySmall?.color,
             ),
           ),
         ],

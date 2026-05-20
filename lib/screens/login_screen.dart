@@ -4,6 +4,7 @@ import 'register_screen.dart';
 import 'home_screen.dart';
 import 'superadmin/superadmin_dashboard_screen.dart';
 import '../providers/auth_provider.dart';
+import '../providers/settings_provider.dart';
 import '../config/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -28,8 +29,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: AppColors.navyDark,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -40,7 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: AppColors.goldLight),
+                      icon: Icon(
+                        Icons.arrow_back_ios,
+                        color: theme.colorScheme.secondary,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Spacer(),
@@ -51,7 +56,10 @@ class _LoginScreenState extends State<LoginScreen> {
               // Logo & header
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.xl,
+                  AppSpacing.md,
+                  AppSpacing.xs,
+                  AppSpacing.md,
+                  AppSpacing.xl,
                 ),
                 child: Column(
                   children: [
@@ -59,40 +67,46 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [AppColors.goldLight, AppColors.goldDark],
+                          colors: [
+                            theme.colorScheme.secondary,
+                            theme.colorScheme.primary,
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(AppSpacing.md),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.goldMid.withValues(alpha: 0.4),
+                            color: theme.colorScheme.primary.withValues(alpha: 0.4),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
                         ],
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.account_balance_wallet,
-                        color: AppColors.navyDark,
+                        color: theme.colorScheme.onPrimary,
                         size: 32,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    const Text(
+                    Text(
                       'Selamat Datang',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.goldLight,
+                        color: theme.colorScheme.secondary,
                         letterSpacing: 0.5,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
-                    const Text(
+                    Text(
                       'Silakan masuk ke akun Anda',
-                      style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: theme.textTheme.bodySmall?.color,
+                      ),
                     ),
                   ],
                 ),
@@ -103,12 +117,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppColors.navyCard,
+                    color: theme.cardTheme.color ?? theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(AppSpacing.md),
-                    border: Border.all(color: AppColors.goldMid.withValues(alpha: 0.4)),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.4),
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: Colors.black.withValues(alpha: 0.15),
                         blurRadius: 16,
                         offset: const Offset(0, 6),
                       ),
@@ -122,13 +138,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           // Email
-                          _buildLabel('Email atau Username'),
+                          _buildLabel('Email atau Username', context),
                           const SizedBox(height: AppSpacing.xs),
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
-                            style: const TextStyle(color: AppColors.textPrimary),
-                            decoration: _inputDecoration('Masukkan email atau username', Icons.person_outline),
+                            style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+                            decoration: _inputDecoration(
+                              'Masukkan email atau username',
+                              Icons.person_outline,
+                              context,
+                            ),
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return 'Email atau username tidak boleh kosong';
@@ -139,20 +159,28 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: AppSpacing.lg),
 
                           // Password
-                          _buildLabel('Password'),
+                          _buildLabel('Password', context),
                           const SizedBox(height: AppSpacing.xs),
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            style: const TextStyle(color: AppColors.textPrimary),
-                            decoration: _inputDecoration('Masukkan password', Icons.lock_outline).copyWith(
+                            style: TextStyle(color: theme.textTheme.bodyLarge?.color),
+                            decoration: _inputDecoration(
+                              'Masukkan password',
+                              Icons.lock_outline,
+                              context,
+                            ).copyWith(
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                                  color: AppColors.goldMid,
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  color: theme.colorScheme.primary,
                                   size: 20,
                                 ),
-                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
                               ),
                             ),
                             validator: (value) {
@@ -173,30 +201,54 @@ class _LoginScreenState extends State<LoginScreen> {
                               return SizedBox(
                                 width: double.infinity,
                                 child: DecoratedBox(
-                                  decoration: AppTheme.goldGradientButton,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        theme.colorScheme.secondary,
+                                        theme.colorScheme.primary,
+                                        theme.colorScheme.primary.withValues(alpha: 0.8),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: theme.colorScheme.primary.withValues(alpha: 0.4),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
                                   child: ElevatedButton(
-                                    onPressed: auth.isLoading ? null : () => _handleLogin(auth),
+                                    onPressed: auth.isLoading
+                                        ? null
+                                        : () => _handleLogin(auth),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.transparent,
                                       shadowColor: Colors.transparent,
-                                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: AppSpacing.md,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
                                     ),
                                     child: auth.isLoading
-                                        ? const SizedBox(
+                                        ? SizedBox(
                                             height: 20,
                                             width: 20,
                                             child: CircularProgressIndicator(
                                               strokeWidth: 2,
-                                              color: AppColors.navyDark,
+                                              color: theme.colorScheme.onPrimary,
                                             ),
                                           )
-                                        : const Text(
+                                        : Text(
                                             'Masuk',
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: AppColors.navyDark,
+                                              color: theme.colorScheme.onPrimary,
                                               letterSpacing: 0.5,
                                             ),
                                           ),
@@ -221,21 +273,26 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Belum punya akun?',
-                      style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: theme.textTheme.bodySmall?.color,
+                      ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const RegisterScreen(),
+                        ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Daftar',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.goldLight,
+                          color: theme.colorScheme.secondary,
                         ),
                       ),
                     ),
@@ -256,6 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final authState = context.read<AuthProvider>();
+    final settings = context.read<SettingsProvider>();
 
     final success = await auth.login(
       _emailController.text.trim(),
@@ -265,15 +323,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success) {
       navigator.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) {
-          if (authState.isSuperAdmin) {
-            return const SuperAdminDashboardScreen();
-          }
-          return Theme(
-            data: DinasTheme.getTheme(authState.dinasId),
-            child: const HomeScreen(),
-          );
-        }),
+        MaterialPageRoute(
+          builder: (_) {
+            if (authState.isSuperAdmin) {
+              return const SuperAdminDashboardScreen();
+            }
+            return Theme(
+              data: DinasTheme.getTheme(authState.dinasId, isDark: settings.isDarkMode),
+              child: const HomeScreen(),
+            );
+          },
+        ),
         (route) => false,
       );
     } else {
@@ -287,42 +347,48 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Widget _buildLabel(String text) => Text(
+  Widget _buildLabel(String text, BuildContext context) => Text(
     text,
-    style: const TextStyle(
+    style: TextStyle(
       fontSize: 13,
       fontWeight: FontWeight.w600,
-      color: AppColors.textSecondary,
+      color: Theme.of(context).textTheme.bodySmall?.color,
       letterSpacing: 0.3,
     ),
   );
 
-  InputDecoration _inputDecoration(String hint, IconData icon) => InputDecoration(
-    hintText: hint,
-    hintStyle: const TextStyle(color: AppColors.textHint),
-    prefixIcon: Icon(icon, color: AppColors.goldMid, size: 20),
-    filled: true,
-    fillColor: AppColors.navyLight,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: AppColors.goldMid, width: 0.5),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: AppColors.goldMid, width: 0.5),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: AppColors.goldLight, width: 1.5),
-    ),
-    errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: AppColors.error, width: 1),
-    ),
-    focusedErrorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: AppColors.error, width: 1.5),
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 14),
-  );
+  InputDecoration _inputDecoration(String hint, IconData icon, BuildContext context) {
+    final theme = Theme.of(context);
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6)),
+      prefixIcon: Icon(icon, color: theme.colorScheme.primary, size: 20),
+      filled: true,
+      fillColor: theme.inputDecorationTheme.fillColor ?? theme.colorScheme.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: theme.colorScheme.primary, width: 0.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: theme.colorScheme.primary, width: 0.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: theme.colorScheme.secondary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: theme.colorScheme.error, width: 1),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 14,
+      ),
+    );
+  }
 }

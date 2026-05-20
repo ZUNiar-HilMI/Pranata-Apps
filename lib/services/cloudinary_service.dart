@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -28,9 +27,55 @@ class CloudinaryService {
       final uri = Uri.parse(CloudinaryConfig.uploadUrl);
       final request = http.MultipartRequest('POST', uri);
 
-      request.fields['upload_preset'] = CloudinaryConfig.uploadPreset;
-      if (folder != null) {
-        request.fields['folder'] = folder;
+      if (CloudinaryConfig.useSignedUpload) {
+        // ─── SIGNED UPLOAD (Lebih Aman untuk Produksi) ─────────────────────
+        // 1. Ambil signature & timestamp dari backend
+        final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
+        final signatureParams = {
+          'timestamp': timestamp,
+          if (folder != null) 'folder': folder,
+        };
+        
+        final signatureUri = Uri.parse(CloudinaryConfig.signatureBaseUrl)
+            .replace(queryParameters: signatureParams);
+            
+        debugPrint('☁️ Requesting signature from backend: $signatureUri');
+        final sigResponse = await http.get(signatureUri);
+        
+        if (sigResponse.statusCode == 200) {
+          final sigData = jsonDecode(sigResponse.body) as Map<String, dynamic>;
+          final signature = sigData['signature'] as String;
+          final returnedTimestamp = sigData['timestamp']?.toString() ?? timestamp;
+          final apiKey = sigData['api_key'] as String? ?? CloudinaryConfig.apiKey;
+          
+          if (apiKey.isEmpty) {
+            throw Exception('Cloudinary API Key is empty. Please set it in CloudinaryConfig.');
+          }
+
+          request.fields['signature'] = signature;
+          request.fields['timestamp'] = returnedTimestamp;
+          request.fields['api_key'] = apiKey;
+          if (folder != null) {
+            request.fields['folder'] = folder;
+          }
+        } else {
+          throw Exception(
+              'Gagal mendapatkan signature dari backend: ${sigResponse.statusCode} ${sigResponse.body}');
+        }
+      } else {
+        // ─── UNSIGNED UPLOAD (Hanya untuk development) ──────────────────────
+        // Jika preset kosong, unggahan tidak akan dijalankan.
+        if (CloudinaryConfig.uploadPreset.isEmpty) {
+          throw Exception(
+              'Cloudinary unsigned upload preset tidak dikonfigurasi. Set `uploadPreset` atau aktifkan signed upload.');
+        }
+
+        // Sangat disarankan untuk membatasi preset ini hanya menerima berkas gambar
+        // dan ukuran terbatas di dashboard Cloudinary untuk mencegah penyalahgunaan.
+        request.fields['upload_preset'] = CloudinaryConfig.uploadPreset;
+        if (folder != null) {
+          request.fields['folder'] = folder;
+        }
       }
 
       request.files.add(

@@ -33,9 +33,7 @@ Widget _buildApp(FakeAuthProvider auth) {
   );
 }
 
-/// Use this instead of pumpAndSettle() when OfflineBanner is present.
-/// OfflineBanner uses a StreamBuilder that never "settles", so pumpAndSettle
-/// would timeout. We pump the animation duration + a few extra frames instead.
+
 Future<void> _pumpFABAnimation(WidgetTester tester) async {
   // AnimationController duration is 300ms
   await tester.pump(const Duration(milliseconds: 350));

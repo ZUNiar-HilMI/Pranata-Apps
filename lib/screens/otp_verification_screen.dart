@@ -23,7 +23,7 @@ class OTPVerificationScreen extends StatefulWidget {
 }
 
 class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
-  final TextEditingController _otpController = TextEditingController();
+  final PinInputController _pinController = PinInputController();
   final OTPService _otpService = OTPService();
 
   bool _isVerifying = false;
@@ -46,7 +46,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    _otpController.dispose();
+    _pinController.dispose();
     super.dispose();
   }
 
@@ -71,12 +71,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   }
 
   Future<void> _verifyOTP() async {
-    if (_otpController.text.length != 6) {
+    if (_pinController.text.length != 6) {
       setState(() => _errorMessage = 'Masukkan 6 digit kode OTP');
       return;
     }
     setState(() { _isVerifying = true; _errorMessage = null; });
-    final result = _otpService.verifyOTP(widget.email, _otpController.text);
+    final result = _otpService.verifyOTP(widget.email, _pinController.text);
     setState(() => _isVerifying = false);
     if (result['success']) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,7 +85,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       widget.onVerified(true);
     } else {
       setState(() => _errorMessage = result['message']);
-      _otpController.clear();
+      _pinController.clear();
     }
   }
 
@@ -95,6 +95,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     setState(() => _isResending = false);
     if (result['success']) {
       _startTimer();
+      _pinController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('OTP dikirim ulang ke ${widget.email}'), backgroundColor: AppColors.success),
       );
@@ -183,7 +184,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   ),
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: AppColors.goldMid.withOpacity(0.4), blurRadius: 20),
+                    BoxShadow(color: AppColors.goldMid.withValues(alpha: 0.4), blurRadius: 20),
                   ],
                 ),
                 child: const Icon(Icons.mail_outline, size: 40, color: AppColors.navyDark),
@@ -218,7 +219,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                     margin: const EdgeInsets.only(top: 12),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppColors.goldMid.withOpacity(0.1),
+                      color: AppColors.goldMid.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: AppColors.goldMid),
                     ),
@@ -238,29 +239,32 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
               const SizedBox(height: 32),
 
-              // OTP input
-              PinCodeTextField(
-                appContext: context,
+              // OTP input — pin_code_fields v9 API
+              MaterialPinField(
+                pinController: _pinController,
                 length: 6,
-                controller: _otpController,
-                animationType: AnimationType.fade,
-                pinTheme: PinTheme(
-                  shape: PinCodeFieldShape.box,
+                theme: MaterialPinTheme(
+                  shape: MaterialPinShape.outlined,
                   borderRadius: BorderRadius.circular(8),
-                  fieldHeight: 56,
-                  fieldWidth: 48,
-                  activeFillColor: AppColors.navyLight,
-                  inactiveFillColor: AppColors.navyLight,
-                  selectedFillColor: AppColors.navyMid,
-                  activeColor: AppColors.goldLight,
-                  inactiveColor: AppColors.goldMid,
-                  selectedColor: AppColors.goldLight,
+                  cellSize: const Size(48, 56),
+                  // Warna isian tiap cell
+                  fillColor: AppColors.navyLight,
+                  focusedFillColor: AppColors.navyMid,
+                  filledFillColor: AppColors.navyLight,
+                  // Warna border
+                  borderColor: AppColors.goldMid,
+                  focusedBorderColor: AppColors.goldLight,
+                  filledBorderColor: AppColors.goldMid,
+                  // Cursor
+                  cursorColor: AppColors.goldLight,
+                  // Text style
+                  textStyle: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
-                cursorColor: AppColors.goldLight,
-                animationDuration: const Duration(milliseconds: 300),
-                enableActiveFill: true,
                 keyboardType: TextInputType.number,
-                textStyle: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
                 onCompleted: (_) => _verifyOTP(),
                 onChanged: (_) => setState(() => _errorMessage = null),
               ),
@@ -271,9 +275,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   margin: const EdgeInsets.only(top: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
+                    color: AppColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.error.withOpacity(0.4)),
+                    border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     children: [

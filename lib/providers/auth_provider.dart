@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/user.dart';
-import '../models/dinas.dart';
 import '../services/firebase_auth_service.dart';
 
 class AuthProvider with ChangeNotifier {

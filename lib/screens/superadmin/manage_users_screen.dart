@@ -22,8 +22,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
   bool _isLoading = true;
 
   // Filter
-  String _filterRole = 'all';   // 'all' | 'superadmin' | 'admin' | 'member'
-  String? _filterDinas;         // null = semua dinas
   String _searchQuery = '';
   late TabController _tabController;
 
@@ -49,25 +47,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
       _dinasList = dinas;
       _isLoading = false;
     });
-  }
-
-  List<User> get _filteredUsers {
-    final roleFilter = ['all', 'superadmin', 'admin'][_tabController.index];
-    return _allUsers.where((u) {
-      // Tab filter
-      if (roleFilter == 'superadmin' && !u.isSuperAdmin) return false;
-      if (roleFilter == 'admin' && !u.isAdminDinas) return false;
-      if (roleFilter == 'all' && u.isSuperAdmin) return false; // 'all' = member only in that tab? 
-      // Actually: Tab 0 = Member, Tab 1 = Admin, Tab 2 = SuperAdmin
-      // Search filter
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        if (!u.fullName.toLowerCase().contains(q) &&
-            !u.username.toLowerCase().contains(q) &&
-            !u.email.toLowerCase().contains(q)) return false;
-      }
-      return true;
-    }).toList();
   }
 
   // Correct mapping for tab → role
@@ -204,7 +183,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
   // ─── User Card ─────────────────────────────────────────────────────────────
   Widget _buildUserCard(User user) {
     final accent = DinasTheme.primaryAccent(user.dinasId);
-    final dinasLabel = DinasTheme.dinasLabel(user.dinasId);
+    // dinasLabel available via DinasTheme.dinasLabel(user.dinasId) if needed
     final initials = user.fullName.trim().split(' ')
         .map((w) => w.isNotEmpty ? w[0] : '')
         .take(2)
@@ -387,7 +366,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
                         child: Text('— Tidak ada —', style: TextStyle(color: AppColors.textSecondary)),
                       ),
                       ..._dinasList.map((d) {
-                        final accent = DinasTheme.primaryAccent(d.id);
                         return DropdownMenuItem<String?>(
                           value: d.id,
                           child: Text(

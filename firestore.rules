@@ -3,32 +3,74 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ─── Helper: cek role user yang sedang login ─────────────────────────────
-    function userRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function userDoc() {
+      return request.auth != null
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid))
+        : null;
     }
+
+    function userRole() {
+      return request.auth != null && userDoc().exists
+        ? userDoc().data.role
+        : null;
+    }
+
+    function userDinasId() {
+      return request.auth != null && userDoc().exists
+        ? userDoc().data.dinasId
+        : null;
+    }
+
     function isSuperAdmin() {
       return request.auth != null && userRole() == 'superadmin';
     }
+
     function isAdmin() {
       return request.auth != null && (userRole() == 'admin' || userRole() == 'superadmin');
     }
 
+    function isDinasAdminFor(String targetDinasId) {
+      return isAdmin() && userDinasId() == targetDinasId;
+    }
+
     // ─── Users ───────────────────────────────────────────────────────────────
-    // Semua user login bisa baca; hanya diri sendiri atau superadmin yang bisa update
+    // Baca hanya profil sendiri atau jika user adalah admin/superadmin.
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId || isSuperAdmin();
+      allow get: if request.auth != null
+          && (request.auth.uid == userId || isAdmin() || isSuperAdmin());
+      allow list: if (request.auth != null && (isAdmin() || isSuperAdmin()))
+          || request.query.limit == 1;
+      allow create: if request.auth != null
+          && (request.auth.uid == userId || isSuperAdmin());
+      allow update: if request.auth != null
+          && (request.auth.uid == userId || isSuperAdmin());
       allow delete: if isSuperAdmin();
     }
 
     // ─── Activities ──────────────────────────────────────────────────────────
-    // Semua user login bisa baca & buat; update/delete oleh pemilik atau admin dinas
+    // Baca hanya aktivitas sendiri, aktivitas dinas untuk admin, atau superadmin.
     match /activities/{activityId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth.uid == resource.data.userId || isAdmin();
-      allow delete: if request.auth.uid == resource.data.userId || isAdmin();
+      allow read: if request.auth != null
+          && (
+            request.auth.uid == resource.data.userId
+            || isDinasAdminFor(resource.data.dinasId)
+            || isSuperAdmin()
+          );
+      allow create: if request.auth != null
+          && request.auth.uid == request.resource.data.userId
+          && request.resource.data.dinasId == userDinasId();
+      allow update: if request.auth != null
+          && (
+            request.auth.uid == resource.data.userId
+            || isDinasAdminFor(resource.data.dinasId)
+            || isSuperAdmin()
+          );
+      allow delete: if request.auth != null
+          && (
+            request.auth.uid == resource.data.userId
+            || isDinasAdminFor(resource.data.dinasId)
+            || isSuperAdmin()
+          );
     }
 
     // ─── Dinas ───────────────────────────────────────────────────────────────

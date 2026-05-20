@@ -29,16 +29,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       maxHeight: 1024,
       imageQuality: 80,
     );
-    if (picked == null) return; // user cancelled
+    if (picked == null) return;
 
     setState(() => _isUploadingPhoto = true);
     try {
-      // Read bytes directly from XFile — works on all platforms
       final bytes = await picked.readAsBytes();
-      debugPrint('📷 Picked image: ${picked.name}, size: ${(bytes.length / 1024).toStringAsFixed(1)}KB');
-
       final url = await CloudinaryService.uploadBytes(bytes, folder: 'profile_photos');
-      debugPrint('✅ Upload result: $url');
 
       if (url != null && mounted) {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -61,9 +57,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _showErrorSnackBar('Upload gagal. Periksa koneksi internet.');
       }
     } catch (e) {
-      debugPrint('❌ Upload error: $e');
       if (mounted) {
-        _showErrorSnackBar('Gagal mengunggah foto: ${e.toString().replaceAll('Exception: ', '')}');
+        _showErrorSnackBar(
+            'Gagal mengunggah foto: ${e.toString().replaceAll('Exception: ', '')}');
       }
     } finally {
       if (mounted) setState(() => _isUploadingPhoto = false);
@@ -86,32 +82,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-
   // ── Bottom sheet: pilih sumber foto ───────────────────────────────────────
   void _showPhotoSourceSheet() {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.navyCard,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color ?? theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
-                color: AppColors.goldMid.withOpacity(0.35),
+                color: theme.colorScheme.primary.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Pilih Sumber Foto',
-              style: TextStyle(color: AppColors.goldLight, fontSize: 17, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: theme.colorScheme.primary, fontSize: 17, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             _buildSourceTile(
@@ -119,6 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               label: 'Galeri',
               sub: 'Pilih dari galeri foto',
               onTap: () => _pickAndUploadPhoto(ImageSource.gallery),
+              theme: theme,
             ),
             const SizedBox(height: 10),
             _buildSourceTile(
@@ -126,6 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               label: 'Kamera',
               sub: 'Ambil foto baru',
               onTap: () => _pickAndUploadPhoto(ImageSource.camera),
+              theme: theme,
             ),
             const SizedBox(height: 6),
           ],
@@ -139,6 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String label,
     required String sub,
     required VoidCallback onTap,
+    required ThemeData theme,
   }) {
     return InkWell(
       onTap: onTap,
@@ -146,30 +147,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.navyMid,
+          color: theme.scaffoldBackgroundColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.goldMid.withOpacity(0.25)),
+          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.25)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.goldMid.withOpacity(0.12),
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: AppColors.goldMid, size: 22),
+              child: Icon(icon, color: theme.colorScheme.primary, size: 22),
             ),
             const SizedBox(width: 14),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
-                Text(sub, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                Text(label,
+                    style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600)),
+                Text(sub, style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 12)),
               ],
             ),
             const Spacer(),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
+            Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color, size: 20),
           ],
         ),
       ),
@@ -180,18 +185,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.currentUser;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.navyDark,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
-              _buildHeader(user),
-              _buildIdentityCard(user),
-              _buildStatistics(user),
-              _buildMenuOptions(),
-              _buildLogoutButton(context, authProvider),
+              _buildHeader(user, theme),
+              _buildIdentityCard(user, theme),
+              _buildStatistics(user, theme),
+              _buildMenuOptions(theme),
+              _buildLogoutButton(context, authProvider, theme),
               const SizedBox(height: 20),
             ],
           ),
@@ -200,16 +206,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildHeader(user) {
+  Widget _buildHeader(dynamic user, ThemeData theme) {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.navyMid, AppColors.navyLight],
+          colors: [
+            theme.colorScheme.surface,
+            Color.lerp(theme.colorScheme.surface, theme.colorScheme.primary, 0.15)!,
+          ],
         ),
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(36),
           bottomRight: Radius.circular(36),
         ),
@@ -223,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 150,
               height: 150,
               decoration: BoxDecoration(
-                color: AppColors.goldMid.withOpacity(0.06),
+                color: theme.colorScheme.primary.withValues(alpha: 0.06),
                 shape: BoxShape.circle,
               ),
             ),
@@ -236,10 +245,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: AppColors.goldLight),
+                      icon: Icon(Icons.arrow_back_ios, color: theme.colorScheme.secondary),
                       onPressed: () => Navigator.pop(context),
                     ),
-                    const Text('Profil', style: TextStyle(color: AppColors.goldLight, fontSize: 18, fontWeight: FontWeight.w600)),
+                    Text('Profil',
+                        style: TextStyle(
+                            color: theme.colorScheme.secondary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600)),
                     const SizedBox(width: 48),
                   ],
                 ),
@@ -249,37 +262,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: _isUploadingPhoto ? null : _showPhotoSourceSheet,
                   child: Stack(
                     children: [
-                      // Avatar circle
                       Container(
                         width: 112,
                         height: 112,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.goldMid, width: 3),
+                          border: Border.all(color: theme.colorScheme.primary, width: 3),
                         ),
                         child: ClipOval(
                           child: _isUploadingPhoto
                               ? Container(
-                                  color: AppColors.navyMid,
-                                  child: const Center(
-                                    child: CircularProgressIndicator(color: AppColors.goldMid, strokeWidth: 2.5),
+                                  color: theme.colorScheme.surface,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                        color: theme.colorScheme.primary, strokeWidth: 2.5),
                                   ),
                                 )
                               : (user?.photoUrl != null && user!.photoUrl!.isNotEmpty)
                                   ? Image.network(
                                       user.photoUrl!,
                                       fit: BoxFit.cover,
-                                      loadingBuilder: (ctx, child, progress) => progress == null
-                                          ? child
-                                          : Container(
-                                              color: AppColors.navyMid,
-                                              child: const Center(
-                                                child: CircularProgressIndicator(color: AppColors.goldMid, strokeWidth: 2),
-                                              ),
-                                            ),
-                                      errorBuilder: (ctx, _, __) => _defaultAvatar(user?.fullName),
+                                      loadingBuilder: (ctx, child, progress) =>
+                                          progress == null
+                                              ? child
+                                              : Container(
+                                                  color: theme.colorScheme.surface,
+                                                  child: Center(
+                                                    child: CircularProgressIndicator(
+                                                        color: theme.colorScheme.primary,
+                                                        strokeWidth: 2),
+                                                  ),
+                                                ),
+                                      errorBuilder: (ctx, _, __) =>
+                                          _defaultAvatar(user?.fullName, theme),
                                     )
-                                  : _defaultAvatar(user?.fullName),
+                                  : _defaultAvatar(user?.fullName, theme),
                         ),
                       ),
                       // Online indicator
@@ -292,7 +309,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           decoration: BoxDecoration(
                             color: AppColors.success,
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.navyMid, width: 2),
+                            border: Border.all(color: theme.colorScheme.surface, width: 2),
                           ),
                         ),
                       ),
@@ -306,12 +323,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: AppColors.goldMid,
+                                  color: theme.colorScheme.primary,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: AppColors.navyMid, width: 2),
-                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4)],
+                                  border:
+                                      Border.all(color: theme.colorScheme.surface, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.3),
+                                        blurRadius: 4)
+                                  ],
                                 ),
-                                child: const Icon(Icons.camera_alt, color: AppColors.navyDark, size: 16),
+                                child: Icon(Icons.camera_alt,
+                                    color: theme.colorScheme.onPrimary, size: 16),
                               ),
                       ),
                     ],
@@ -320,12 +343,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 14),
                 Text(
                   user?.fullName ?? 'User',
-                  style: const TextStyle(color: AppColors.goldLight, fontSize: 22, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: theme.colorScheme.secondary,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   user?.role == 'admin' ? 'Administrator' : 'Member',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+                  style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 15),
                 ),
               ],
             ),
@@ -335,37 +361,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _defaultAvatar(String? name) {
+  Widget _defaultAvatar(String? name, ThemeData theme) {
     return Container(
-      color: AppColors.navyMid,
+      color: theme.colorScheme.surface,
       child: Center(
         child: Text(
           (name != null && name.isNotEmpty)
               ? name.trim().split(' ').map((w) => w[0]).take(2).join().toUpperCase()
               : 'U',
-          style: const TextStyle(color: AppColors.goldLight, fontSize: 36, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: theme.colorScheme.secondary, fontSize: 36, fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 
-  Widget _buildIdentityCard(user) {
+  Widget _buildIdentityCard(dynamic user, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
       child: Transform.translate(
         offset: const Offset(0, -28),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.navyCard,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.goldMid.withOpacity(0.35)),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 12)],
+            border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.35)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 12)
+            ],
           ),
           child: Column(
             children: [
-              _buildInfoRow(Icons.mail, 'EMAIL', user?.email ?? '-'),
-              Container(height: 0.4, margin: const EdgeInsets.symmetric(horizontal: 20), color: AppColors.goldMid.withOpacity(0.3)),
-              _buildInfoRow(Icons.corporate_fare, 'DEPARTEMEN', user?.role == 'admin' ? 'Operasional & Anggaran' : 'Member Operasional'),
+              _buildInfoRow(Icons.mail, 'EMAIL', user?.email ?? '-', theme),
+              Container(
+                  height: 0.4,
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+              _buildInfoRow(
+                Icons.corporate_fare,
+                'DEPARTEMEN',
+                user?.role == 'admin' ? 'Operasional & Anggaran' : 'Member Operasional',
+                theme,
+              ),
             ],
           ),
         ),
@@ -373,7 +410,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildInfoRow(IconData icon, String label, String value, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(18),
       child: Row(
@@ -381,19 +418,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.goldMid.withOpacity(0.12),
+              color: theme.colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: AppColors.goldMid, size: 20),
+            child: Icon(icon, color: theme.colorScheme.primary, size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.2)),
+                Text(label,
+                    style: TextStyle(
+                        color: theme.textTheme.bodySmall?.color,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.2)),
                 const SizedBox(height: 3),
-                Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(value,
+                    style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -402,23 +448,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatistics(user) {
+  Widget _buildStatistics(dynamic user, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Statistik', style: TextStyle(color: AppColors.goldLight, fontSize: 17, fontWeight: FontWeight.bold)),
+          Text('Statistik',
+              style: TextStyle(
+                  color: theme.colorScheme.secondary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 14),
           FutureBuilder<Map<String, dynamic>>(
-            future: storageService.getStatistics(userId: user?.role == 'admin' ? null : user?.id),
+            future: storageService.getStatistics(
+                userId: user?.role == 'admin' ? null : user?.id),
             builder: (context, snapshot) {
-              final stats = snapshot.data ?? {'totalActivities': 0, 'approvedActivities': 0};
+              final stats = snapshot.data ??
+                  {'totalActivities': 0, 'approvedActivities': 0};
               return Row(
                 children: [
-                  Expanded(child: _buildStatCard('Aktivitas', stats['totalActivities'].toString(), Icons.trending_up, AppColors.success, '+12% bulan ini')),
+                  Expanded(
+                    child: _buildStatCard(
+                      'Aktivitas',
+                      stats['totalActivities'].toString(),
+                      Icons.trending_up,
+                      AppColors.success,
+                      '+12% bulan ini',
+                      theme,
+                    ),
+                  ),
                   const SizedBox(width: 14),
-                  Expanded(child: _buildStatCard('Disetujui', stats['approvedActivities'].toString(), Icons.speed, AppColors.goldLight, 'Efisiensi Tinggi')),
+                  Expanded(
+                    child: _buildStatCard(
+                      'Disetujui',
+                      stats['approvedActivities'].toString(),
+                      Icons.speed,
+                      theme.colorScheme.secondary,
+                      'Efisiensi Tinggi',
+                      theme,
+                    ),
+                  ),
                 ],
               );
             },
@@ -428,26 +498,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color, String sub) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color, String sub, ThemeData theme) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.navyCard,
+        color: theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.goldMid.withOpacity(0.3)),
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(title,
+              style: TextStyle(
+                  color: theme.textTheme.bodySmall?.color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
           const SizedBox(height: 6),
-          Text(value, style: const TextStyle(color: AppColors.goldLight, fontSize: 30, fontWeight: FontWeight.bold)),
+          Text(value,
+              style: TextStyle(
+                  color: theme.colorScheme.secondary,
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
           Row(
             children: [
               Icon(icon, size: 12, color: color),
               const SizedBox(width: 4),
-              Expanded(child: Text(sub, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600))),
+              Expanded(
+                  child: Text(sub,
+                      style: TextStyle(
+                          color: color, fontSize: 10, fontWeight: FontWeight.w600))),
             ],
           ),
         ],
@@ -455,22 +537,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildMenuOptions() {
+  Widget _buildMenuOptions(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.navyCard,
+          color: theme.cardTheme.color ?? theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.goldMid.withOpacity(0.3)),
+          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
-            _buildMenuItem(Icons.photo_camera_outlined, 'Ganti Foto Profil', _showPhotoSourceSheet),
-            _buildDivider(),
-            _buildMenuItem(Icons.lock_outline, 'Keamanan & Password', _showChangePasswordSheet),
-            _buildDivider(),
-            _buildMenuItem(Icons.info_outline, 'Tentang Aplikasi', _showAboutSheet),
+            _buildMenuItem(Icons.photo_camera_outlined, 'Ganti Foto Profil',
+                _showPhotoSourceSheet, theme),
+            _buildDivider(theme),
+            _buildMenuItem(Icons.lock_outline, 'Keamanan & Password',
+                _showChangePasswordSheet, theme),
+            _buildDivider(theme),
+            _buildMenuItem(Icons.info_outline, 'Tentang Aplikasi', _showAboutSheet, theme),
           ],
         ),
       ),
@@ -478,6 +562,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showChangePasswordSheet() {
+    final theme = Theme.of(context);
     final formKey = GlobalKey<FormState>();
     final currentCtrl = TextEditingController();
     final newCtrl = TextEditingController();
@@ -495,9 +580,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (ctx, setModal) => Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
-            decoration: const BoxDecoration(
-              color: AppColors.navyCard,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            decoration: BoxDecoration(
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             ),
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
             child: Form(
@@ -506,37 +591,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Handle bar
                   Center(
                     child: Container(
-                      width: 40, height: 4,
+                      width: 40,
+                      height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.goldMid.withOpacity(0.35),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(2)),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Ganti Password',
-                    style: TextStyle(color: AppColors.goldLight, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  Text('Ganti Password',
+                      style: TextStyle(
+                          color: theme.colorScheme.secondary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Masukkan password lama dan password baru Anda',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                  ),
+                  Text('Masukkan password lama dan password baru Anda',
+                      style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color, fontSize: 12)),
                   const SizedBox(height: 24),
-                  // Current password
                   _passwordField(
                     controller: currentCtrl,
                     label: 'Password Saat Ini',
                     obscure: !showCurrent,
                     toggle: () => setModal(() => showCurrent = !showCurrent),
-                    validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                    theme: theme,
                   ),
                   const SizedBox(height: 14),
-                  // New password
                   _passwordField(
                     controller: newCtrl,
                     label: 'Password Baru',
@@ -547,9 +631,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (v.length < 6) return 'Minimal 6 karakter';
                       return null;
                     },
+                    theme: theme,
                   ),
                   const SizedBox(height: 14),
-                  // Confirm new password
                   _passwordField(
                     controller: confirmCtrl,
                     label: 'Konfirmasi Password Baru',
@@ -560,70 +644,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (v != newCtrl.text) return 'Password tidak cocok';
                       return null;
                     },
+                    theme: theme,
                   ),
                   const SizedBox(height: 28),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: isLoading ? null : () async {
-                        if (!formKey.currentState!.validate()) return;
-                        setModal(() => isLoading = true);
-                        try {
-                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                          await authProvider.changePassword(
-                            currentPassword: currentCtrl.text.trim(),
-                            newPassword: newCtrl.text.trim(),
-                          );
-                          if (ctx.mounted) Navigator.pop(ctx);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Row(children: [
-                                  Icon(Icons.check_circle, color: Colors.white, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Password berhasil diubah!'),
-                                ]),
-                                backgroundColor: AppColors.success,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          setModal(() => isLoading = false);
-                          if (ctx.mounted) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(
-                                content: Row(children: [
-                                  const Icon(Icons.error_outline, color: Colors.white, size: 18),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: Text(e.toString().replaceAll('Exception: ', ''))),
-                                ]),
-                                backgroundColor: AppColors.error,
-                                behavior: SnackBarBehavior.floating,
-                                duration: const Duration(seconds: 4),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                            );
-                          }
-                        }
-                      },
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              if (!formKey.currentState!.validate()) return;
+                              setModal(() => isLoading = true);
+                              try {
+                                final authProvider = Provider.of<AuthProvider>(
+                                    context,
+                                    listen: false);
+                                await authProvider.changePassword(
+                                  currentPassword: currentCtrl.text.trim(),
+                                  newPassword: newCtrl.text.trim(),
+                                );
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Row(children: [
+                                        Icon(Icons.check_circle,
+                                            color: Colors.white, size: 18),
+                                        SizedBox(width: 8),
+                                        Text('Password berhasil diubah!'),
+                                      ]),
+                                      backgroundColor: AppColors.success,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                setModal(() => isLoading = false);
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Row(children: [
+                                        const Icon(Icons.error_outline,
+                                            color: Colors.white, size: 18),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                            child: Text(e
+                                                .toString()
+                                                .replaceAll('Exception: ', ''))),
+                                      ]),
+                                      backgroundColor: AppColors.error,
+                                      behavior: SnackBarBehavior.floating,
+                                      duration: const Duration(seconds: 4),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.goldMid,
-                        disabledBackgroundColor: AppColors.navyLight,
+                        backgroundColor: theme.colorScheme.primary,
+                        disabledBackgroundColor:
+                            theme.colorScheme.primary.withValues(alpha: 0.3),
                         padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
                       child: isLoading
-                          ? const SizedBox(
-                              height: 20, width: 20,
-                              child: CircularProgressIndicator(color: AppColors.navyDark, strokeWidth: 2.5),
-                            )
-                          : const Text(
-                              'Simpan Password',
-                              style: TextStyle(color: AppColors.navyDark, fontSize: 15, fontWeight: FontWeight.bold),
-                            ),
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                  color: theme.colorScheme.onPrimary, strokeWidth: 2.5))
+                          : Text('Simpan Password',
+                              style: TextStyle(
+                                  color: theme.colorScheme.onPrimary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -641,43 +741,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required bool obscure,
     required VoidCallback toggle,
     required String? Function(String?) validator,
+    required ThemeData theme,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscure,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontSize: 14),
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        labelStyle:
+            TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 13),
         filled: true,
-        fillColor: AppColors.navyMid,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: theme.scaffoldBackgroundColor,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.goldMid.withOpacity(0.3)),
+          borderSide: BorderSide(
+              color: theme.colorScheme.primary.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.goldMid.withOpacity(0.3)),
+          borderSide: BorderSide(
+              color: theme.colorScheme.primary.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.goldMid, width: 1.5),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.error),
+          borderSide: BorderSide(color: theme.colorScheme.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+          borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
         ),
-        errorStyle: const TextStyle(color: AppColors.error, fontSize: 11),
+        errorStyle: TextStyle(color: theme.colorScheme.error, fontSize: 11),
         suffixIcon: IconButton(
           icon: Icon(
             obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-            color: AppColors.textSecondary,
+            color: theme.textTheme.bodySmall?.color,
             size: 20,
           ),
           onPressed: toggle,
@@ -687,126 +792,127 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showAboutSheet() {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.navyCard,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color ?? theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle bar
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
-                color: AppColors.goldMid.withOpacity(0.35),
-                borderRadius: BorderRadius.circular(2),
-              ),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 28),
-            // App icon area
             Container(
-              width: 72, height: 72,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.navyMid, AppColors.navyLight],
+                gradient: LinearGradient(
+                  colors: [theme.colorScheme.surface, theme.scaffoldBackgroundColor],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.goldMid, width: 2),
+                border: Border.all(color: theme.colorScheme.primary, width: 2),
               ),
-              child: const Icon(Icons.shield_outlined, color: AppColors.goldLight, size: 38),
+              child: Icon(Icons.shield_outlined,
+                  color: theme.colorScheme.secondary, size: 38),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'PRANATA',
               style: TextStyle(
-                color: AppColors.goldLight,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 3,
-              ),
+                  color: theme.colorScheme.secondary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 3),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Proses Anggaran lan Tata Data',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
+            Text('Proses Anggaran lan Tata Data',
+                style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 12),
+                textAlign: TextAlign.center),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.goldMid.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                'Versi 2.4.0',
-                style: TextStyle(color: AppColors.goldMid, fontSize: 11, fontWeight: FontWeight.w600),
-              ),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20)),
+              child: Text('Versi 2.4.0',
+                  style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600)),
             ),
             const SizedBox(height: 28),
-            // Divider
-            Container(height: 0.5, color: AppColors.goldMid.withOpacity(0.25)),
+            Container(
+                height: 0.5,
+                color: theme.colorScheme.primary.withValues(alpha: 0.25)),
             const SizedBox(height: 24),
-            // Credit section
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: AppColors.navyMid,
+                color: theme.scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.goldMid.withOpacity(0.25)),
+                border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.25)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'DIKEMBANGKAN OLEH',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.4,
-                    ),
-                  ),
+                  Text('DIKEMBANGKAN OLEH',
+                      style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.4)),
                   const SizedBox(height: 10),
                   Row(
                     children: [
                       Container(
-                        width: 42, height: 42,
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
-                          color: AppColors.goldMid.withOpacity(0.12),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.goldMid.withOpacity(0.4)),
+                          border: Border.all(
+                              color: theme.colorScheme.primary.withValues(alpha: 0.4)),
                         ),
-                        child: const Center(
-                          child: Text('MZH', style: TextStyle(color: AppColors.goldLight, fontSize: 10, fontWeight: FontWeight.bold)),
+                        child: Center(
+                          child: Text('MZH',
+                              style: TextStyle(
+                                  color: theme.colorScheme.secondary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold)),
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Column(
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Muhammad Zuniar Hilmi',
                             style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
+                                color: theme.textTheme.bodyLarge?.color,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold),
                           ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Mobile App Developer',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                          ),
+                          const SizedBox(height: 2),
+                          Text('Mobile App Developer',
+                              style: TextStyle(
+                                  color: theme.textTheme.bodySmall?.color,
+                                  fontSize: 12)),
                         ],
                       ),
                     ],
@@ -815,27 +921,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            // Info section
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: AppColors.navyMid,
+                color: theme.scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.goldMid.withOpacity(0.25)),
+                border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.25)),
               ),
               child: Column(
                 children: [
-                  _aboutRow(Icons.calendar_today_outlined, 'Tahun Rilis', '2026'),
+                  _aboutRow(Icons.calendar_today_outlined, 'Tahun Rilis', '2026', theme),
                   const SizedBox(height: 10),
-                  _aboutRow(Icons.phone_android_outlined, 'Platform', 'Android & iOS'),
+                  _aboutRow(
+                      Icons.phone_android_outlined, 'Platform', 'Android & iOS', theme),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               '© 2026 Muhammad Zuniar Hilmi. All rights reserved.',
-              style: TextStyle(color: AppColors.textHint, fontSize: 10),
+              style: TextStyle(
+                  color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                  fontSize: 10),
               textAlign: TextAlign.center,
             ),
           ],
@@ -844,38 +953,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _aboutRow(IconData icon, String label, String value) {
+  Widget _aboutRow(IconData icon, String label, String value, ThemeData theme) {
     return Row(
       children: [
-        Icon(icon, size: 15, color: AppColors.goldMid),
+        Icon(icon, size: 15, color: theme.colorScheme.primary),
         const SizedBox(width: 10),
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        Text(label,
+            style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 12)),
         const Spacer(),
-        Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(value,
+            style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600)),
       ],
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap) {
+  Widget _buildMenuItem(
+      IconData icon, String title, VoidCallback onTap, ThemeData theme) {
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.goldMid, size: 22),
+            Icon(icon, color: theme.colorScheme.primary, size: 22),
             const SizedBox(width: 12),
-            Expanded(child: Text(title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w500))),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
+            Expanded(
+                child: Text(title,
+                    style: TextStyle(
+                        color: theme.textTheme.bodyLarge?.color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500))),
+            Icon(Icons.chevron_right,
+                color: theme.textTheme.bodySmall?.color, size: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDivider() => Container(height: 0.4, margin: const EdgeInsets.symmetric(horizontal: 16), color: AppColors.goldMid.withOpacity(0.25));
+  Widget _buildDivider(ThemeData theme) => Container(
+        height: 0.4,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        color: theme.colorScheme.primary.withValues(alpha: 0.25));
 
-  Widget _buildLogoutButton(BuildContext context, AuthProvider authProvider) {
+  Widget _buildLogoutButton(
+      BuildContext context, AuthProvider authProvider, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 32, 20, 0),
       child: Column(
@@ -893,17 +1018,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 }
               },
-              icon: const Icon(Icons.logout, color: AppColors.error, size: 20),
-              label: const Text('Keluar', style: TextStyle(color: AppColors.error, fontSize: 15, fontWeight: FontWeight.bold)),
+              icon: Icon(Icons.logout, color: theme.colorScheme.error, size: 20),
+              label: Text('Keluar',
+                  style: TextStyle(
+                      color: theme.colorScheme.error,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold)),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.error, width: 1),
+                side: BorderSide(color: theme.colorScheme.error, width: 1),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
           const SizedBox(height: 14),
-          const Text('VERSION 2.4.0', style: TextStyle(color: AppColors.textHint, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
+          Text('VERSION 2.4.0',
+              style: TextStyle(
+                  color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.5)),
         ],
       ),
     );

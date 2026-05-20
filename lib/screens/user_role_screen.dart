@@ -17,7 +17,7 @@ class _UserRoleScreenState extends State<UserRoleScreen> {
   List<User> _users = [];
   bool _isLoading = true;
   String _searchQuery = '';
-  String _roleFilter = 'Semua'; // Semua / admin / member
+  String _roleFilter = 'Semua'; 
   final Set<String> _selectedIds = {};
   bool _isSelectionMode = false;
 

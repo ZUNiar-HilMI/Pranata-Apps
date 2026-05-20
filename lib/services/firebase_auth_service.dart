@@ -18,7 +18,26 @@ class FirebaseAuthService {
     String role = 'member',
     String? dinasId,
   }) async {
-    // 1. Buat akun di Firebase Auth DULU
+    // 1. Pastikan username dan email belum digunakan di Firestore
+    final usernameQuery = await _db
+        .collection(_usersCollection)
+        .where('username', isEqualTo: username)
+        .limit(1)
+        .get();
+    if (usernameQuery.docs.isNotEmpty) {
+      throw Exception('Username already exists');
+    }
+
+    final emailQuery = await _db
+        .collection(_usersCollection)
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+    if (emailQuery.docs.isNotEmpty) {
+      throw Exception('Email already exists');
+    }
+
+    // 2. Buat akun di Firebase Auth setelah username dan email dipastikan unik
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
@@ -27,17 +46,6 @@ class FirebaseAuthService {
     final uid = credential.user!.uid;
 
     try {
-      // 2. Cek username unik
-      final usernameQuery = await _db
-          .collection(_usersCollection)
-          .where('username', isEqualTo: username)
-          .limit(1)
-          .get();
-      if (usernameQuery.docs.isNotEmpty) {
-        await credential.user!.delete();
-        throw Exception('Username already exists');
-      }
-
       // 3. Simpan profil ke Firestore
       final userData = {
         'id': uid,
@@ -64,14 +72,18 @@ class FirebaseAuthService {
         createdAt: DateTime.now(),
       );
     } catch (e) {
-      if (e.toString().contains('Username already exists')) rethrow;
-      try { await credential.user!.delete(); } catch (_) {}
+      try {
+        await credential.user!.delete();
+      } catch (_) {}
       rethrow;
     }
   }
 
   // ─── Login ───────────────────────────────────────────────────────────────
   Future<User?> login(String usernameOrEmail, String password) async {
+    const genericError =
+        'Login gagal. Periksa kembali username/email dan password.';
+
     String email = usernameOrEmail;
 
     if (!usernameOrEmail.contains('@')) {
@@ -80,16 +92,19 @@ class FirebaseAuthService {
           .where('username', isEqualTo: usernameOrEmail)
           .limit(1)
           .get();
-      if (q.docs.isEmpty) throw Exception('User not found');
+      if (q.docs.isEmpty) throw Exception(genericError);
       email = q.docs.first.data()['email'] as String;
     }
 
-    final credential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    return await _getUserById(credential.user!.uid);
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return await _getUserById(credential.user!.uid);
+    } on fb.FirebaseAuthException {
+      throw Exception(genericError);
+    }
   }
 
   // ─── Logout ──────────────────────────────────────────────────────────────

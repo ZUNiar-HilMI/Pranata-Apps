@@ -95,32 +95,30 @@ class OTPService {
       final otp = generateOTP();
       storeOTP(email, otp);
 
-      // Try to send real email via EmailJS
+      if (!_isEmailJSConfigured) {
+        debugPrint('⚠️ EmailJS configuration incomplete. Falling back to demo OTP mode.');
+        return {
+          'success': true,
+          'message': 'OTP generated in demo mode. Configure EmailJS for real delivery.',
+          'otp': otp,
+          'demo_mode': true,
+        };
+      }
+
       try {
         await _sendEmailViaEmailJS(email, userName, otp);
-        
         debugPrint('✅ OTP email sent successfully to $email');
-        
         return {
           'success': true,
           'message': 'OTP sent to $email',
         };
       } catch (emailError) {
-        // If EmailJS fails, fall back to demo mode
         debugPrint('⚠️ EmailJS failed: $emailError');
         debugPrint('📱 Using DEMO mode instead');
-        
-        // Show OTP in console for demo/testing
-        debugPrint('═══════════════════════════════════════');
-        debugPrint('🔐 OTP for $email: $otp');
-        debugPrint('📧 Email delivery failed - showing in console');
-        debugPrint('⏰ Valid for $otpExpiryMinutes minutes');
-        debugPrint('═══════════════════════════════════════');
-
         return {
           'success': true,
           'message': 'OTP sent to $email',
-          'otp': otp, // Include OTP in demo mode
+          'otp': otp,
           'demo_mode': true,
         };
       }
@@ -133,12 +131,22 @@ class OTPService {
     }
   }
 
+  bool get _isEmailJSConfigured {
+    return EmailConfig.serviceId.isNotEmpty &&
+        EmailConfig.templateId.isNotEmpty &&
+        EmailConfig.publicKey.isNotEmpty;
+  }
+
   // Private method to send email via EmailJS API
   Future<void> _sendEmailViaEmailJS(
     String toEmail,
     String userName,
     String otpCode,
   ) async {
+    if (!_isEmailJSConfigured) {
+      throw Exception('EmailJS configuration is incomplete.');
+    }
+
     final url = Uri.parse(EmailConfig.apiUrl);
     
     final emailData = {
@@ -146,30 +154,21 @@ class OTPService {
       'template_id': EmailConfig.templateId,
       'user_id': EmailConfig.publicKey,
       'template_params': {
-        'email': toEmail,         // matches {{email}} in template "To Email" field
+        'email': toEmail,
         'to_name': userName,
-        'user_name': userName,    // matches {{user_name}} in body
-        'otp_code': otpCode,      // matches {{otp_code}} in body
+        'user_name': userName,
+        'otp_code': otpCode,
         'from_name': 'SIGAP App',
       },
     };
-
-    debugPrint('📤 Sending to EmailJS...');
-    debugPrint('   Service: ${EmailConfig.serviceId}');
-    debugPrint('   Template: ${EmailConfig.templateId}');
-    debugPrint('   To: $toEmail');
 
     final response = await http.post(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'origin': 'http://localhost',
       },
       body: jsonEncode(emailData),
     ).timeout(const Duration(seconds: 10));
-
-    debugPrint('📬 EmailJS Response: ${response.statusCode}');
-    debugPrint('📬 EmailJS Body: ${response.body}');
 
     if (response.statusCode != 200) {
       throw Exception('EmailJS error ${response.statusCode}: ${response.body}');

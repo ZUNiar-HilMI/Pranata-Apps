@@ -10,7 +10,7 @@ void main() {
     });
 
     test('generateOTP should create 6-digit code', () {
-      final otp = otpService.generateOTP();
+      final otp = OTPService.generateOTP();
       
       expect(otp.length, equals(6));
       expect(int.tryParse(otp), isNotNull);
@@ -19,8 +19,8 @@ void main() {
     });
 
     test('generateOTP should create different codes', () {
-      final otp1 = otpService.generateOTP();
-      final otp2 = otpService.generateOTP();
+      final otp1 = OTPService.generateOTP();
+      final otp2 = OTPService.generateOTP();
       
       // While theoretically they could be the same, statistically very unlikely
       expect(otp1, isNot(equals(otp2)));
@@ -28,7 +28,7 @@ void main() {
 
     test('verifyOTP should return success for correct OTP', () {
       const email = 'test@example.com';
-      final otp = otpService.generateOTP();
+      final otp = OTPService.generateOTP();
       otpService.storeOTP(email, otp);
       
       final result = otpService.verifyOTP(email, otp);
@@ -39,7 +39,7 @@ void main() {
 
     test('verifyOTP should return failure for incorrect OTP', () {
       const email = 'test@example.com';
-      final correctOTP = otpService.generateOTP();
+      final correctOTP = OTPService.generateOTP();
       const wrongOTP = '999999';
       otpService.storeOTP(email, correctOTP);
       
@@ -61,7 +61,7 @@ void main() {
 
     test('verifyOTP should increment attempts on wrong OTP', () {
       const email = 'test@example.com';
-      final correctOTP = otpService.generateOTP();
+      final correctOTP = OTPService.generateOTP();
       const wrongOTP = '999999';
       otpService.storeOTP(email, correctOTP);
       
@@ -77,7 +77,7 @@ void main() {
 
     test('verifyOTP should fail after 3 wrong attempts', () {
       const email = 'test@example.com';
-      final correctOTP = otpService.generateOTP();
+      final correctOTP = OTPService.generateOTP();
       const wrongOTP = '999999';
       otpService.storeOTP(email, correctOTP);
       
@@ -95,7 +95,7 @@ void main() {
 
     test('verifyOTP should remove OTP after successful verification', () {
       const email = 'test@example.com';
-      final otp = otpService.generateOTP();
+      final otp = OTPService.generateOTP();
       otpService.storeOTP(email, otp);
       
       // First verification succeeds
@@ -110,7 +110,7 @@ void main() {
 
     test('hasOTP should return true for stored OTP', () {
       const email = 'test@example.com';
-      final otp = otpService.generateOTP();
+      final otp = OTPService.generateOTP();
       otpService.storeOTP(email, otp);
       
       expect(otpService.hasOTP(email), isTrue);
@@ -124,7 +124,7 @@ void main() {
 
     test('clearOTP should remove stored OTP', () {
       const email = 'test@example.com';
-      final otp = otpService.generateOTP();
+      final otp = OTPService.generateOTP();
       otpService.storeOTP(email, otp);
       
       expect(otpService.hasOTP(email), isTrue);
@@ -136,7 +136,7 @@ void main() {
 
     test('getRemainingTime should return duration for valid OTP', () {
       const email = 'test@example.com';
-      final otp = otpService.generateOTP();
+      final otp = OTPService.generateOTP();
       otpService.storeOTP(email, otp);
       
       final remainingTime = otpService.getRemainingTime(email);

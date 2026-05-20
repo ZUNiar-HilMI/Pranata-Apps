@@ -38,9 +38,9 @@ class _AddActivityScreenState extends State<AddActivityScreen>
   // Photo upload state
   File? _photoBeforeFile;
   File? _photoAfterFile;
-  String? _photoBeforeWeb;   // blob URL for web preview only
+  String? _photoBeforeWeb;   
   String? _photoAfterWeb;
-  XFile? _photoBeforeXFile;  // web: XFile for actual upload
+  XFile? _photoBeforeXFile;  
   XFile? _photoAfterXFile;
   
   // Location state
@@ -140,14 +140,12 @@ class _AddActivityScreenState extends State<AddActivityScreen>
         _locationAddress = 'Getting your location...';
       });
 
-      // Get current position with timeout
+      // Get current position with timeout — geolocator 14.x API
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('Location timeout');
-        },
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
       );
 
       setState(() {

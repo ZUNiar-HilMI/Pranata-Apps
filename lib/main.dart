@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -6,6 +7,7 @@ import 'screens/welcome_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/superadmin/superadmin_dashboard_screen.dart';
 import 'providers/auth_provider.dart';
+import 'providers/settings_provider.dart';
 import 'firebase_options.dart';
 import 'services/connectivity_service.dart';
 import 'config/app_theme.dart';
@@ -16,6 +18,14 @@ void main() async {
   // Initialize locale data (required for DateFormat with 'id_ID')
   await initializeDateFormatting('id_ID', null);
 
+  // Load local environment variables if present.
+  // This is optional: app still works if `.env` is not available.
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    // Ignore missing .env file in local development.
+  }
+
   // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -24,9 +34,16 @@ void main() async {
   // Initialize connectivity service
   await ConnectivityService().initialize();
 
+  // Inisialisasi SettingsProvider sebelum runApp agar preferensi tersedia
+  final settingsProvider = SettingsProvider();
+  await settingsProvider.initialize();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AuthProvider()..initialize(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()..initialize()),
+        ChangeNotifierProvider.value(value: settingsProvider),
+      ],
       child: const MyApp(),
     ),
   );
@@ -37,38 +54,54 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'PRANATA',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.themeData,
-      // Wrap ALL screens with MobilePreviewWrapper
-      builder: (context, child) {
-        return MobilePreviewWrapper(child: child ?? const SizedBox());
-      },
-      home: Consumer<AuthProvider>(
-        builder: (context, authProvider, _) {
-          if (authProvider.isLoading) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+    return Consumer<SettingsProvider>(
+      builder: (context, settings, _) {
+        return MaterialApp(
+          title: 'PRANATA',
+          debugShowCheckedModeBanner: false,
+          // Theme bereaksi langsung terhadap toggle Mode Gelap di Settings
+          theme: AppTheme.lightThemeData,
+          darkTheme: AppTheme.themeData,
+          themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          themeAnimationDuration: const Duration(milliseconds: 300),
+          themeAnimationCurve: Curves.easeInOut,
+          // Ukuran font bereaksi terhadap pilihan di Settings
+          builder: (context, child) {
+            final mediaData = MediaQuery.of(context);
+            return MediaQuery(
+              data: mediaData.copyWith(
+                textScaler: TextScaler.linear(settings.textScaleFactor),
+              ),
+              child: MobilePreviewWrapper(child: child ?? const SizedBox()),
             );
-          }
+          },
+          home: Consumer2<AuthProvider, SettingsProvider>(
+            builder: (context, authProvider, settings, _) {
+              if (authProvider.isLoading) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
 
-          if (!authProvider.isLoggedIn) {
-            return const WelcomeScreen();
-          }
+              if (!authProvider.isLoggedIn) {
+                return const WelcomeScreen();
+              }
 
-          // SuperAdmin → dashboard khusus (tetap pakai theme Navy-Gold default)
-          if (authProvider.isSuperAdmin) {
-            return const SuperAdminDashboardScreen();
-          }
+              // SuperAdmin → dashboard khusus (tetap pakai theme Navy-Gold default)
+              if (authProvider.isSuperAdmin) {
+                return const SuperAdminDashboardScreen();
+              }
 
-          // Admin Dinas / Member → HomeScreen dibungkus tema dinasnya
-          return Theme(
-            data: DinasTheme.getTheme(authProvider.dinasId),
-            child: const HomeScreen(),
-          );
-        },
-      ),
+              // Admin Dinas / Member → HomeScreen dibungkus tema dinasnya
+              // isDark diteruskan agar toggle Mode Gelap di Settings bereaksi langsung
+              return Theme(
+                data: DinasTheme.getTheme(authProvider.dinasId, isDark: settings.isDarkMode),
+                child: const HomeScreen(),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

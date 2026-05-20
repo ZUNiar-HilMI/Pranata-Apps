@@ -78,41 +78,22 @@ class DishubColors {
 
 class DinasTheme {
   /// Kembalikan ThemeData sesuai dinasId user.
+  /// Jika [isDark] = false, gunakan lightThemeData dengan accent warna dinas.
   /// Jika dinasId null / tidak dikenal → default Navy-Gold (superadmin).
-  static ThemeData getTheme(String? dinasId) {
+  static ThemeData getTheme(String? dinasId, {bool isDark = true}) {
+    if (!isDark) {
+      return AppTheme.lightThemeData;
+    }
+    return AppTheme.themeData;
+  }
+
+  // Helper: warna aksen gelap per dinas (untuk light mode)
+  static Color _accentDark(String? dinasId) {
     switch (dinasId) {
-      case 'kominfo':
-        return _buildTheme(
-          dark:    KominfoColors.dark,
-          mid:     KominfoColors.mid,
-          light:   KominfoColors.light,
-          card:    KominfoColors.card,
-          accent:  KominfoColors.accent,
-          accentL: KominfoColors.accentL,
-          accentD: KominfoColors.accentD,
-        );
-      case 'dlh':
-        return _buildTheme(
-          dark:    DlhColors.dark,
-          mid:     DlhColors.mid,
-          light:   DlhColors.light,
-          card:    DlhColors.card,
-          accent:  DlhColors.accent,
-          accentL: DlhColors.accentL,
-          accentD: DlhColors.accentD,
-        );
-      case 'dishub':
-        return _buildTheme(
-          dark:    DishubColors.dark,
-          mid:     DishubColors.mid,
-          light:   DishubColors.light,
-          card:    DishubColors.card,
-          accent:  DishubColors.accent,
-          accentL: DishubColors.accentL,
-          accentD: DishubColors.accentD,
-        );
-      default:
-        return AppTheme.themeData; // superadmin / fallback
+      case 'kominfo': return KominfoColors.accentD;
+      case 'dlh':     return DlhColors.accentD;
+      case 'dishub':  return DishubColors.accentD;
+      default:        return AppColors.goldDark;
     }
   }
 
@@ -568,5 +549,171 @@ class AppTheme {
         offset: const Offset(0, 4),
       ),
     ],
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Light Theme (Mode Terang)
+  // ─────────────────────────────────────────────────────────────────────────
+  static ThemeData get lightThemeData => ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: const Color(0xFFF5F0E8),
+    colorScheme: const ColorScheme.light(
+      primary: AppColors.goldDark,
+      secondary: AppColors.goldMid,
+      surface: Color(0xFFFAF5EA),
+      error: AppColors.error,
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: Color(0xFF1A1A2E),
+    ),
+
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color(0xFFFAF5EA),
+      elevation: 0,
+      centerTitle: true,
+      iconTheme: IconThemeData(color: AppColors.goldDark),
+      titleTextStyle: TextStyle(
+        color: AppColors.goldDark,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 0.5,
+      ),
+    ),
+
+    cardTheme: CardThemeData(
+      color: Colors.white,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.goldMid, width: 0.4),
+      ),
+    ),
+
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: Colors.white,
+      hintStyle: const TextStyle(color: Color(0xFF9B8A6E)),
+      labelStyle: const TextStyle(color: Color(0xFF6B5B3E)),
+      floatingLabelStyle: const TextStyle(color: AppColors.goldDark),
+      prefixIconColor: AppColors.goldDark,
+      suffixIconColor: AppColors.goldDark,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.goldMid, width: 0.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.goldMid, width: 0.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.goldDark, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.error, width: 1),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    ),
+
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.goldDark,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
+        ),
+        elevation: 2,
+      ),
+    ),
+
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.goldDark,
+        side: const BorderSide(color: AppColors.goldDark, width: 1.5),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      ),
+    ),
+
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: AppColors.goldDark),
+    ),
+
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Color(0xFFFAF5EA),
+      selectedItemColor: AppColors.goldDark,
+      unselectedItemColor: Color(0xFF9B8A6E),
+      elevation: 10,
+    ),
+
+    dividerTheme: const DividerThemeData(
+      color: AppColors.goldMid,
+      thickness: 0.3,
+    ),
+
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      backgroundColor: AppColors.goldDark,
+      foregroundColor: Colors.white,
+    ),
+
+    textTheme: const TextTheme(
+      headlineLarge: TextStyle(color: AppColors.goldDark, fontWeight: FontWeight.bold),
+      headlineMedium: TextStyle(color: AppColors.goldDark, fontWeight: FontWeight.bold),
+      headlineSmall: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.w600),
+      titleLarge: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.w600),
+      titleMedium: TextStyle(color: Color(0xFF1A1A2E)),
+      titleSmall: TextStyle(color: Color(0xFF6B5B3E)),
+      bodyLarge: TextStyle(color: Color(0xFF1A1A2E)),
+      bodyMedium: TextStyle(color: Color(0xFF1A1A2E)),
+      bodySmall: TextStyle(color: Color(0xFF6B5B3E)),
+      labelLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+    ),
+
+    iconTheme: const IconThemeData(color: AppColors.goldDark),
+    primaryIconTheme: const IconThemeData(color: AppColors.goldDark),
+
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith(
+        (s) => s.contains(WidgetState.selected) ? AppColors.goldDark : const Color(0xFFCBB89A),
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (s) => s.contains(WidgetState.selected)
+            ? AppColors.goldMid.withValues(alpha: 0.5)
+            : const Color(0xFFE8D5B7),
+      ),
+    ),
+
+    dialogTheme: DialogThemeData(
+      backgroundColor: const Color(0xFFFAF5EA),
+      titleTextStyle: const TextStyle(
+        color: AppColors.goldDark,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+      contentTextStyle: const TextStyle(color: Color(0xFF1A1A2E)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.goldMid, width: 0.5),
+      ),
+    ),
+
+    snackBarTheme: const SnackBarThemeData(
+      backgroundColor: Color(0xFF3D2B1F),
+      contentTextStyle: TextStyle(color: Colors.white),
+    ),
+
+    chipTheme: ChipThemeData(
+      backgroundColor: const Color(0xFFE8D5B7),
+      labelStyle: const TextStyle(color: Color(0xFF1A1A2E)),
+      side: const BorderSide(color: AppColors.goldMid, width: 0.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
   );
 }

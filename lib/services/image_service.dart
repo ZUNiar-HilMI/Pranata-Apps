@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
@@ -11,11 +10,17 @@ class ImageService {
   static const int maxInputSizeBytes = 3 * 1024 * 1024; // 3MB
   static const int targetQuality = 70; // 70% JPEG quality
   static const int maxWidthHeight = 1024; // max dimension
-  static const _imgbbApiKey = '5b93bc47e3792118f19b1ce649f0f2c1';
+
+  // API key ImgBB harus disimpan di konfigurasi yang aman dan tidak di-commit.
+  static const String _imgbbApiKey = '';
 
   /// Upload bytes ke ImgBB dan return URL publik permanen.
   static Future<String?> uploadToImgBB(Uint8List bytes, String fileName) async {
     try {
+      if (_imgbbApiKey.isEmpty) {
+        throw Exception('ImgBB API key belum dikonfigurasi.');
+      }
+
       final base64Image = base64Encode(bytes);
       final response = await http.post(
         Uri.parse('https://api.imgbb.com/1/upload?key=$_imgbbApiKey'),

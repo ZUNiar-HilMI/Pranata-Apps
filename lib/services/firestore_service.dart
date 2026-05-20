@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb;
 import '../models/activity.dart';
 import '../models/dinas.dart';
 
@@ -102,7 +101,7 @@ class FirestoreService {
         ? activities.where((a) => a.date.year == year).toList()
         : activities;
 
-    final totalBudget = filtered.fold<double>(0, (sum, a) => sum + a.budget);
+    final totalBudget = filtered.fold<double>(0, (acc, a) => acc + a.budget);
 
     return {
       'totalActivities': filtered.length,

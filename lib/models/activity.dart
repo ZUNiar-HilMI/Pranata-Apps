@@ -10,8 +10,8 @@ class Activity {
   final String? photoBefore;
   final String? photoAfter;
   final String userId;
-  final String dinasId; // dinas pemilik kegiatan ini
-  final String status; // 'pending', 'approved', 'rejected'
+  final String dinasId; 
+  final String status; 
   final DateTime createdAt;
 
   Activity({

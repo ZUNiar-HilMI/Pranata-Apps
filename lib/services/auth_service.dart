@@ -40,11 +40,13 @@ class AuthService {
       }
 
       // Create new user
+      final passwordSalt = User.generateSalt();
       final newUser = User(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         username: username,
         email: email,
-        password: User.hashPassword(password),
+        password: User.hashPassword(password, salt: passwordSalt),
+        passwordSalt: passwordSalt,
         fullName: fullName,
         role: role,
         createdAt: DateTime.now(),
@@ -115,10 +117,11 @@ class AuthService {
     return user != null;
   }
 
-  // Set current user
+  // Set current user (with password stripped for security)
   Future<void> _setCurrentUser(User user) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_currentUserKey, jsonEncode(user.toJson()));
+    final safeUser = user.copyWith(password: '', clearPasswordSalt: true);
+    await prefs.setString(_currentUserKey, jsonEncode(safeUser.toJson()));
   }
 
   // Update user
@@ -166,14 +169,11 @@ class AuthService {
     }
   }
 
-  // Delete all non-default users (keep admin & member default accounts)
+  // Delete all users from local storage
   Future<int> deleteNonDefaultUsers() async {
-    final defaultEmails = ['admin@example.com', 'member@example.com'];
     final users = await _getUsers();
-    final filtered = users.where((u) => defaultEmails.contains(u.email)).toList();
-    final deletedCount = users.length - filtered.length;
-    await _saveUsers(filtered);
-    return deletedCount;
+    await _saveUsers([]);
+    return users.length;
   }
 
   // Delete user by email

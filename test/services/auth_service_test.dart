@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../lib/services/auth_service.dart';
-import '../../lib/models/user.dart';
-import '../helpers/test_helpers.dart';
 
 void main() {
   group('AuthService Tests', () {
