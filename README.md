@@ -1,4 +1,4 @@
-# 📋 PRANATA - Proses Anggaran lan Tata Data
+# PRANATA - Proses Anggaran lan Tata Data
 
 <p align="center">
   <img src="assets/images/app_icon.png" alt="PRANATA Logo" width="120"/>
@@ -18,13 +18,13 @@
 
 ---
 
-## 📖 Tentang Aplikasi
+## Tentang Aplikasi
 
 **PRANATA** (*Proses Anggaran lan Tata Data*) adalah aplikasi mobile yang dirancang untuk membantu pengelolaan data aktivitas dan anggaran pada instansi pemerintahan (dinas). Aplikasi ini mendukung **multi-dinas** dengan tema visual yang berbeda untuk setiap dinas, serta memiliki sistem **role-based access control** (SuperAdmin, Admin, dan Member).
 
 ---
 
-## ✨ Fitur Utama
+## Fitur Utama
 
 | Fitur | Deskripsi |
 |-------|-----------|
@@ -38,6 +38,7 @@
 | 🔔 **Notifikasi** | Sistem notifikasi untuk verifikasi dan pembaruan status |
 | 🎨 **Multi-Dinas Theme** | Tema warna unik untuk setiap dinas |
 | 🌐 **Offline Support** | Sinkronisasi data saat koneksi tidak stabil |
+| 🔒 **Privasi & Keamanan** | Kebijakan privasi dalam aplikasi dan perlindungan data pengguna |
 
 ---
 
@@ -123,6 +124,11 @@ lib/
    - Isi `CLOUDINARY_*` dan `EMAILJS_*` dengan nilai dari akun Anda
    - Jangan commit file `.env` ke repository
 
+6. **Catatan Privasi**
+   - Aplikasi menyediakan `Kebijakan Privasi` yang dapat diakses melalui menu Pengaturan.
+   - Data sensitif seperti kunci API dan konfigurasi email disimpan di file `.env` lokal.
+   - Pastikan `.env` tidak diunggah ke repository publik.
+
 4. **Konfigurasi Firebase secara lokal**
    - Buat project di [Firebase Console](https://console.firebase.google.com/)
    - Aktifkan **Authentication** (Email/Password)
@@ -175,6 +181,19 @@ Proyek ini bersifat **private** dan dikembangkan untuk keperluan magang / intern
 
 ---
 
-<p align="center">
-  Dibuat dengan ❤️ menggunakan Flutter
-</p>
+## 🔒 Kebijakan Privasi
+
+PRANATA mengumpulkan data berikut untuk menyediakan layanan utama:
+
+- Nama lengkap
+- Email
+- Username
+- Assignment dinas
+- Data aktivitas yang disimpan pengguna
+
+Data digunakan untuk autentikasi, penyimpanan profil, verifikasi OTP, dan pemrosesan aktivitas.
+Password tidak disimpan dalam Firestore secara langsung; autentikasi dilakukan melalui Firebase Auth.
+Kebijakan privasi tersedia langsung di dalam aplikasi melalui menu Pengaturan.
+
+---
+

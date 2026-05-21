@@ -6,6 +6,7 @@ import 'superadmin/superadmin_dashboard_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../config/app_theme.dart';
+import 'privacy_policy_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -256,6 +257,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               );
                             },
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PrivacyPolicyScreen(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'Baca Kebijakan Privasi',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.secondary,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
                           ),
                         ],
                       ),

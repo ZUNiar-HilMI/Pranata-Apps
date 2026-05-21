@@ -1,10 +1,14 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../services/firestore_service.dart';
 import '../config/app_theme.dart';
+import '../config/cloudinary_config.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -31,10 +35,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (picked == null) return;
 
-    setState(() => _isUploadingPhoto = true);
     try {
       final bytes = await picked.readAsBytes();
-      final url = await CloudinaryService.uploadBytes(bytes, folder: 'profile_photos');
+      if (!mounted) return;
+
+      // Tampilkan pratinjau (preview) circular dan interactive crop sebelum mengunggah
+      final Uint8List? croppedBytes = await showDialog<Uint8List?>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => ImageAdjustDialog(imageBytes: bytes),
+      );
+
+      if (croppedBytes == null) return; // User membatalkan
+
+      setState(() => _isUploadingPhoto = true);
+      
+      // Unggah menggunakan folder dari konfigurasi .env
+      final url = await CloudinaryService.uploadBytes(
+        croppedBytes,
+        folder: CloudinaryConfig.folder,
+      );
 
       if (url != null && mounted) {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -58,8 +78,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar(
-            'Gagal mengunggah foto: ${e.toString().replaceAll('Exception: ', '')}');
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        // Periksa jika error terkait Cloudinary config
+        if (errorMsg.contains('upload preset tidak dikonfigurasi') || 
+            errorMsg.contains('Upload preset not found')) {
+          _showErrorSnackBar(
+            'Gagal mengunggah foto: Upload Preset tidak ditemukan di akun Cloudinary Anda.\n'
+            'Harap buat Unsigned Upload Preset bernama "${CloudinaryConfig.uploadPreset}" di Dashboard Cloudinary Anda.',
+          );
+        } else {
+          _showErrorSnackBar('Gagal mengunggah foto: $errorMsg');
+        }
       }
     } finally {
       if (mounted) setState(() => _isUploadingPhoto = false);
@@ -293,7 +322,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                         strokeWidth: 2),
                                                   ),
                                                 ),
-                                      errorBuilder: (ctx, _, __) =>
+                                      errorBuilder: (ctx, error, stackTrace) =>
                                           _defaultAvatar(user?.fullName, theme),
                                     )
                                   : _defaultAvatar(user?.fullName, theme),
@@ -1039,6 +1068,218 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.5)),
         ],
+      ),
+    );
+  }
+}
+
+// ── Dialog Penyesuaian Foto Profil Interaktif ───────────────────────────────
+class ImageAdjustDialog extends StatefulWidget {
+  final Uint8List imageBytes;
+
+  const ImageAdjustDialog({super.key, required this.imageBytes});
+
+  @override
+  State<ImageAdjustDialog> createState() => _ImageAdjustDialogState();
+}
+
+class _ImageAdjustDialogState extends State<ImageAdjustDialog> {
+  final GlobalKey _repaintKey = GlobalKey();
+  double _zoom = 1.0;
+  final TransformationController _transformController = TransformationController();
+
+  @override
+  void initState() {
+    super.initState();
+    _transformController.addListener(() {
+      final value = _transformController.value.getMaxScaleOnAxis();
+      if (value != _zoom) {
+        setState(() {
+          _zoom = value.clamp(1.0, 4.0);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  Future<Uint8List?> _captureCroppedImage() async {
+    try {
+      final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      debugPrint('Error cropping image: $e');
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Dialog(
+      backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 320),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Sesuaikan Foto Profil',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.secondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Cubit / geser foto untuk mengatur posisi terbaik',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.textTheme.bodySmall?.color,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Center(
+              child: Stack(
+                children: [
+                  Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                        width: 3,
+                      ),
+                    ),
+                    child: RepaintBoundary(
+                      key: _repaintKey,
+                      child: Container(
+                        width: 194,
+                        height: 194,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black12,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: InteractiveViewer(
+                          transformationController: _transformController,
+                          minScale: 1.0,
+                          maxScale: 4.0,
+                          boundaryMargin: const EdgeInsets.all(100),
+                          child: Image.memory(
+                            widget.imageBytes,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  IgnorePointer(
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withValues(alpha: 0.45),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Icon(Icons.zoom_out, color: theme.textTheme.bodySmall?.color, size: 18),
+                Expanded(
+                  child: Slider(
+                    value: _zoom,
+                    min: 1.0,
+                    max: 4.0,
+                    activeColor: theme.colorScheme.primary,
+                    inactiveColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                    onChanged: (val) {
+                      setState(() {
+                        _zoom = val;
+                        final double currentScale = _transformController.value.getMaxScaleOnAxis();
+                        final double scaleFactor = val / currentScale;
+                        _transformController.value = _transformController.value *
+                            Matrix4.diagonal3Values(scaleFactor, scaleFactor, 1.0);
+                      });
+                    },
+                  ),
+                ),
+                Icon(Icons.zoom_in, color: theme.textTheme.bodySmall?.color, size: 18),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, null),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: theme.colorScheme.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text(
+                      'Batal',
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final croppedBytes = await _captureCroppedImage();
+                      if (context.mounted) {
+                        Navigator.pop(context, croppedBytes);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'Simpan',
+                      style: TextStyle(
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

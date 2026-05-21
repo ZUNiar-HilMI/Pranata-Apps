@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/otp_service.dart';
 import 'otp_verification_screen.dart';
+import 'privacy_policy_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -17,6 +18,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _agreeToPrivacy = false;
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _usernameController = TextEditingController();
@@ -333,6 +335,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             );
                           },
                         ),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Theme(
+                                data: ThemeData(
+                                  unselectedWidgetColor: AppColors.goldMid.withOpacity(0.6),
+                                ),
+                                child: Checkbox(
+                                  value: _agreeToPrivacy,
+                                  activeColor: AppColors.goldLight,
+                                  checkColor: AppColors.navyDark,
+                                  side: BorderSide(color: AppColors.goldMid.withOpacity(0.6), width: 1.5),
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _agreeToPrivacy = val ?? false;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PrivacyPolicyScreen(),
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  'Saya membaca dan menyetujui Kebijakan Privasi.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.goldLight,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -371,6 +420,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit(AuthProvider auth) async {
+    if (!_agreeToPrivacy) {
+      _showSnack('Anda harus menyetujui Kebijakan Privasi terlebih dahulu', AppColors.error);
+      return;
+    }
     if (_nameController.text.trim().isEmpty ||
         _emailController.text.trim().isEmpty ||
         _usernameController.text.trim().isEmpty ||

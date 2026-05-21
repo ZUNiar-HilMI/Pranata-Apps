@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
+import 'privacy_policy_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -194,6 +195,26 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               letterSpacing: 1.5,
                               color: goldLight,
                             ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PrivacyPolicyScreen(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Kebijakan Privasi',
+                          style: TextStyle(
+                            color: goldLight.withOpacity(0.6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),

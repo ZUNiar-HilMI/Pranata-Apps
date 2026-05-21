@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Aplikasi PRANATA membutuhkan akses lokasi untuk mencatat koordinat lokasi kegiatan secara otomatis pada peta.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Aplikasi PRANATA membutuhkan akses kamera untuk mengambil dokumentasi foto sebelum dan sesudah kegiatan.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Aplikasi PRANATA membutuhkan akses galeri foto untuk memilih dokumentasi foto sebelum dan sesudah kegiatan.</string>
 </dict>
 </plist>

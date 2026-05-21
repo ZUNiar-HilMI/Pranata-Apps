@@ -15,6 +15,9 @@ class CloudinaryConfig {
   // Isi dengan API Key dari Cloudinary Dashboard (hanya diperlukan untuk signed upload)
   static String get apiKey => dotenv.env['CLOUDINARY_API_KEY'] ?? '';
 
+  // Folder tujuan di Cloudinary
+  static String get folder => dotenv.env['CLOUDINARY_FOLDER'] ?? 'profile_photos';
+
   // URL backend Anda untuk meminta tanda tangan digital (signature)
   static String get signatureBaseUrl =>
       dotenv.env['CLOUDINARY_SIGNATURE_URL'] ??

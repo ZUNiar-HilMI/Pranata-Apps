@@ -45,6 +45,7 @@ app.*.map.json
 /android/app/release
 
 # Sensitive config files - API keys & credentials
+.env
 lib/firebase_options.dart
 android/app/google-services.json
 ios/GoogleService-Info.plist

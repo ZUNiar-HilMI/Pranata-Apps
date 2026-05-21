@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -18,10 +19,16 @@ void main() async {
   // Initialize locale data (required for DateFormat with 'id_ID')
   await initializeDateFormatting('id_ID', null);
 
+  // Initialize dotenv to empty by default to prevent NotInitializedError
+  dotenv.testLoad(fileInput: '');
+
   // Load local environment variables if present.
   // This is optional: app still works if `.env` is not available.
   try {
-    await dotenv.load(fileName: '.env');
+    final assetManifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    if (assetManifest.listAssets().contains('.env') || assetManifest.listAssets().contains('assets/.env')) {
+      await dotenv.load(fileName: '.env');
+    }
   } catch (_) {
     // Ignore missing .env file in local development.
   }
@@ -143,7 +150,7 @@ class MobilePreviewWrapper extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     blurRadius: 30,
                     spreadRadius: 5,
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
 import '../providers/settings_provider.dart';
+import 'privacy_policy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -99,6 +100,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _buildSectionTitle('TENTANG', context),
                         const SizedBox(height: 12),
                         _buildCard([
+                          _buildTapTile(
+                            context: context,
+                            icon: Icons.privacy_tip_outlined,
+                            title: 'Kebijakan Privasi',
+                            trailing: '',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PrivacyPolicyScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildDivider(),
                           _buildTapTile(
                             context: context,
                             icon: Icons.info_outline,
