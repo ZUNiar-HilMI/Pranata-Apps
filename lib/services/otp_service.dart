@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/email_config.dart';
+import '../config/api_config.dart';
+import 'api_client.dart';
 
 
 class OTPService {
@@ -38,6 +40,13 @@ class OTPService {
     };
   }
 
+  // Verify OTP (Asynchronous wrapper for Backend, falls back to local map)
+  Future<Map<String, dynamic>> verifyOTPAsync(String email, String inputOTP) async {
+    // Selalu gunakan verifikasi lokal agar sinkron dengan pengiriman EmailJS langsung dari browser client-side
+    // Ini menghindari pemblokiran API non-browser oleh EmailJS.
+    return verifyOTP(email, inputOTP);
+  }
+
   // Verify OTP
   Map<String, dynamic> verifyOTP(String email, String inputOTP) {
     if (!_otpStore.containsKey(email)) {
@@ -63,7 +72,7 @@ class OTPService {
       };
     }
 
-    // Check attempts (max 3)
+    // Check max attempts
     if (attempts >= 3) {
       _otpStore.remove(email);
       return {
@@ -92,6 +101,7 @@ class OTPService {
   // Send OTP via EmailJS
   Future<Map<String, dynamic>> sendOTPEmail(String email, String userName) async {
     try {
+      // Selalu kirim langsung dari client-side browser agar tidak diblokir oleh EmailJS non-browser security check!
       final otp = generateOTP();
       storeOTP(email, otp);
 
@@ -155,6 +165,7 @@ class OTPService {
       'user_id': EmailConfig.publicKey,
       'template_params': {
         'email': toEmail,
+        'to_email': toEmail, // Pastikan to_email juga dikirim untuk kompatibilitas template
         'to_name': userName,
         'user_name': userName,
         'otp_code': otpCode,

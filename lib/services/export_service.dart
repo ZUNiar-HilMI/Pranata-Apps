@@ -1,5 +1,6 @@
 import 'dart:io' as io;
 import 'dart:typed_data';
+import 'package:cloud_firestore/cloud_firestore.dart'; // ← TAMBAHAN
 import 'package:excel/excel.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/date_symbol_data_local.dart';
@@ -8,7 +9,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../models/activity.dart';
+import '../config/api_config.dart';
 
 class ExportService {
   // ── Warna tema (terpusat) ────────────────────────────────────────────────────
@@ -23,26 +26,93 @@ class ExportService {
       NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
   static final _dateFmt = DateFormat('dd/MM/yyyy');
 
+  // ── [PERBAIKAN] Re-fetch aktivitas dari Firestore server (bukan cache) ──────
+  // Dipanggil sebelum export agar URL foto Cloudinary pasti sudah ada,
+  // terutama di Android yang sering membaca dari cache lokal.
+  static Future<List<Activity>> _fetchFreshActivities(
+    List<Activity> activities,
+  ) async {
+    if (activities.isEmpty || ApiConfig.useCustomBackend) return activities;
+
+    try {
+      // Ambil semua ID dari list yang dikirim
+      final ids = activities.map((a) => a.id).whereType<String>().toList();
+      if (ids.isEmpty) return activities;
+
+      // Firestore hanya bisa where-in max 10 item, batch jika perlu
+      final List<Activity> freshList = [];
+      for (int i = 0; i < ids.length; i += 10) {
+        final batchIds = ids.sublist(i, i + 10 > ids.length ? ids.length : i + 10);
+        final snapshot = await FirebaseFirestore.instance
+            .collection('activities') // sesuaikan nama collection Anda
+            .where(FieldPath.documentId, whereIn: batchIds)
+            .get(const GetOptions(source: Source.server)); // ← paksa dari server
+
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          freshList.add(Activity(
+            id: doc.id,
+            name: data['name'] as String,
+            description: data['description'] as String,
+            budget: (data['budget'] as num).toDouble(),
+            date: (data['date'] as Timestamp).toDate(),
+            location: data['location'] as String,
+            latitude: (data['latitude'] as num?)?.toDouble(),
+            longitude: (data['longitude'] as num?)?.toDouble(),
+            photoBefore: data['photoBefore'] as String?,
+            photoAfter: data['photoAfter'] as String?,
+            userId: data['userId'] as String,
+            dinasId: data['dinasId'] as String? ?? '',
+            status: data['status'] as String? ?? 'pending',
+            createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          ));
+        }
+      }
+
+      // Kembalikan dalam urutan yang sama dengan input
+      final freshMap = {for (final a in freshList) a.id: a};
+      return activities.map((a) => freshMap[a.id] ?? a).toList();
+    } catch (e) {
+      // Jika gagal fetch (misal offline), tetap gunakan data lama
+      return activities;
+    }
+  }
+
   // ── Load image bytes: support http URL dan local file path ─────────────────
   static Future<Uint8List?> _downloadImageBytes(String? source) async {
-    if (source == null || source.isEmpty) return null;
-    // blob: URL hanya valid di browser tab yang sama — tidak bisa di-download
-    if (source.startsWith('blob:') || source.startsWith('data:')) return null;
+    if (source == null || source.isEmpty) {
+      debugPrint('📷 _downloadImageBytes: source is empty or null');
+      return null;
+    }
+    if (source.startsWith('blob:') || source.startsWith('data:')) {
+      debugPrint('📷 _downloadImageBytes: ignoring blob/data URI');
+      return null;
+    }
     try {
       if (source.startsWith('http')) {
-        // Firebase Storage URL atau URL publik lainnya
+        debugPrint('📷 _downloadImageBytes: downloading from HTTP URL: $source');
         final response = await http
             .get(Uri.parse(source))
             .timeout(const Duration(seconds: 15));
-        if (response.statusCode == 200) return response.bodyBytes;
+        if (response.statusCode == 200) {
+          debugPrint('📷 _downloadImageBytes: download successful, bytes size: ${response.bodyBytes.length}');
+          return response.bodyBytes;
+        }
+        debugPrint('📷 _downloadImageBytes: download failed with status code: ${response.statusCode}');
         return null;
       } else {
-        // Local file path (foto lama sebelum Firebase Storage)
+        debugPrint('📷 _downloadImageBytes: reading from local file path: $source');
         final file = io.File(source);
-        if (await file.exists()) return await file.readAsBytes();
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          debugPrint('📷 _downloadImageBytes: local read successful, bytes size: ${bytes.length}');
+          return bytes;
+        }
+        debugPrint('📷 _downloadImageBytes: local file does not exist');
         return null;
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('📷 _downloadImageBytes error: $e');
       return null;
     }
   }
@@ -54,6 +124,10 @@ class ExportService {
     int? year,
   }) async {
     await initializeDateFormatting('id_ID', null);
+
+    // ── [PERBAIKAN] Ambil data fresh dari Firestore sebelum mulai export ──────
+    final freshActivities = await _fetchFreshActivities(activities);
+
     final excel = Excel.createExcel();
     final sheetName = 'Laporan Kegiatan';
     final sheet = excel[sheetName];
@@ -79,28 +153,27 @@ class ExportService {
     }
 
     // Set column widths
-    sheet.setColumnWidth(0, 6);    // No
-    sheet.setColumnWidth(1, 32);   // Nama Kegiatan
-    sheet.setColumnWidth(2, 14);   // Tanggal
-    sheet.setColumnWidth(3, 42);   // Link Lokasi (GMaps)
-    sheet.setColumnWidth(4, 20);   // Anggaran
-    sheet.setColumnWidth(5, 12);   // Status
-    sheet.setColumnWidth(6, 42);   // Foto Sebelum
-    sheet.setColumnWidth(7, 42);   // Foto Sesudah
+    sheet.setColumnWidth(0, 6);
+    sheet.setColumnWidth(1, 32);
+    sheet.setColumnWidth(2, 14);
+    sheet.setColumnWidth(3, 42);
+    sheet.setColumnWidth(4, 20);
+    sheet.setColumnWidth(5, 12);
+    sheet.setColumnWidth(6, 42);
+    sheet.setColumnWidth(7, 42);
 
-    // Hyperlink style (biru & underline)
+    // Hyperlink style
     final linkStyle = CellStyle(
       fontColorHex: ExcelColor.fromHexString('#4FC3F7'),
       underline: Underline.Single,
       verticalAlign: VerticalAlign.Center,
     );
 
-    // ── Data rows
-    for (int i = 0; i < activities.length; i++) {
-      final a = activities[i];
+    // ── Data rows — gunakan freshActivities ───────────────────────────────────
+    for (int i = 0; i < freshActivities.length; i++) {
+      final a = freshActivities[i]; // ← pakai data fresh
       final rowIndex = i + 1;
 
-      // Buat link Google Maps jika ada koordinat, fallback ke alamat teks
       final String gmapsLink = (a.latitude != null && a.longitude != null)
           ? 'https://maps.google.com/?q=${a.latitude!.toStringAsFixed(6)},${a.longitude!.toStringAsFixed(6)}'
           : a.location;
@@ -113,7 +186,6 @@ class ExportService {
         verticalAlign: VerticalAlign.Center,
       );
 
-      // Kolom teks biasa
       final textData = [
         (0, TextCellValue((i + 1).toString())),
         (1, TextCellValue(a.name)),
@@ -140,10 +212,11 @@ class ExportService {
             : rowStyle;
       }
 
-      // Kolom Foto Sebelum (kolom 6)
+      // ── [PERBAIKAN] Kolom Foto Sebelum (kolom 6) ─────────────────────────
+      // Sekarang a.photoBefore sudah fresh dari Firestore server
       {
         final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex));
-        final photoUrl = a.photoBefore ?? '';
+        final photoUrl = (a.photoBefore ?? '').trim();
         cell.value = TextCellValue(photoUrl.isEmpty ? '-' : photoUrl);
         cell.cellStyle = photoUrl.isEmpty
             ? rowStyle
@@ -154,10 +227,10 @@ class ExportService {
               );
       }
 
-      // Kolom Foto Sesudah (kolom 7)
+      // ── [PERBAIKAN] Kolom Foto Sesudah (kolom 7) ─────────────────────────
       {
         final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex));
-        final photoUrl = a.photoAfter ?? '';
+        final photoUrl = (a.photoAfter ?? '').trim();
         cell.value = TextCellValue(photoUrl.isEmpty ? '-' : photoUrl);
         cell.cellStyle = photoUrl.isEmpty
             ? rowStyle
@@ -169,7 +242,7 @@ class ExportService {
       }
     }
 
-    // ── Simpan sebagai bytes dan share
+    // ── Simpan dan share
     final bytes = excel.save();
     if (bytes == null) throw Exception('Gagal membuat file Excel');
 
@@ -197,6 +270,10 @@ class ExportService {
     int? year,
   }) async {
     await initializeDateFormatting('id_ID', null);
+
+    // ── [PERBAIKAN] Ambil data fresh dari Firestore sebelum mulai export ──────
+    final freshActivities = await _fetchFreshActivities(activities);
+
     final pdf = pw.Document();
 
     final headerColor  = PdfColor.fromHex(_hexNavyDark);
@@ -206,12 +283,12 @@ class ExportService {
     final borderColor  = PdfColor.fromHex(_hexNavyBorder);
     final textColor    = PdfColor.fromHex(_hexTextLight);
 
-    // ── Download semua foto terlebih dahulu (paralel)
+    // ── Download semua foto (paralel) — dari freshActivities ─────────────────
     final photoBeforeBytes = await Future.wait(
-      activities.map((a) => _downloadImageBytes(a.photoBefore)),
+      freshActivities.map((a) => _downloadImageBytes(a.photoBefore)),
     );
     final photoAfterBytes = await Future.wait(
-      activities.map((a) => _downloadImageBytes(a.photoAfter)),
+      freshActivities.map((a) => _downloadImageBytes(a.photoAfter)),
     );
 
     // ── Halaman 1: Tabel utama
@@ -220,7 +297,7 @@ class ExportService {
         pageFormat: PdfPageFormat.a4.landscape,
         margin: const pw.EdgeInsets.all(24),
         header: (context) => _buildPdfHeader(headerColor, goldColor),
-        footer: (context) => _buildPdfFooter(context, activities.length, headerColor),
+        footer: (context) => _buildPdfFooter(context, freshActivities.length, headerColor),
         build: (context) => [
           pw.Table(
             columnWidths: {
@@ -255,12 +332,11 @@ class ExportService {
                     ),
                 ],
               ),
-              // Data rows with zebra striping
-              ...List.generate(activities.length, (i) {
-                final a = activities[i];
+              // Data rows
+              ...List.generate(freshActivities.length, (i) {
+                final a = freshActivities[i];
                 final isEven = i.isEven;
                 final rowBg = isEven ? evenRowColor : oddRowColor;
-                // Buat link Google Maps jika ada koordinat, fallback ke alamat teks
                 final String lokasiText = (a.latitude != null && a.longitude != null)
                     ? 'https://maps.google.com/?q=${a.latitude!.toStringAsFixed(6)},${a.longitude!.toStringAsFixed(6)}'
                     : a.location;
@@ -269,25 +345,21 @@ class ExportService {
                 return pw.TableRow(
                   decoration: pw.BoxDecoration(color: rowBg),
                   children: [
-                    // No
                     pw.Padding(
                       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                       child: pw.Text('${i + 1}', textAlign: pw.TextAlign.center,
                           style: pw.TextStyle(fontSize: 8, color: textColor)),
                     ),
-                    // Nama Kegiatan
                     pw.Padding(
                       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                       child: pw.Text(a.name, textAlign: pw.TextAlign.left,
                           style: pw.TextStyle(fontSize: 8, color: textColor)),
                     ),
-                    // Tanggal
                     pw.Padding(
                       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                       child: pw.Text(_dateFmt.format(a.date), textAlign: pw.TextAlign.left,
                           style: pw.TextStyle(fontSize: 8, color: textColor)),
                     ),
-                    // Lokasi (link GMaps)
                     pw.Padding(
                       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                       child: pw.UrlLink(
@@ -305,13 +377,11 @@ class ExportService {
                         ),
                       ),
                     ),
-                    // Anggaran
                     pw.Padding(
                       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                       child: pw.Text(_currencyFmt.format(a.budget), textAlign: pw.TextAlign.right,
                           style: pw.TextStyle(fontSize: 8, color: textColor)),
                     ),
-                    // Status
                     pw.Padding(
                       padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                       child: pw.Text(_statusLabel(a.status), textAlign: pw.TextAlign.left,
@@ -323,14 +393,14 @@ class ExportService {
             ],
           ),
           pw.SizedBox(height: 16),
-          _buildPdfSummary(activities, headerColor, goldColor, textColor),
+          _buildPdfSummary(freshActivities, headerColor, goldColor, textColor),
         ],
       ),
     );
 
-    // ── Halaman 2+: Foto kegiatan (hanya jika ada foto)
+    // ── Halaman foto
     final activitiesWithPhoto = <int>[];
-    for (int i = 0; i < activities.length; i++) {
+    for (int i = 0; i < freshActivities.length; i++) {
       if (photoBeforeBytes[i] != null || photoAfterBytes[i] != null) {
         activitiesWithPhoto.add(i);
       }
@@ -342,11 +412,11 @@ class ExportService {
           pageFormat: PdfPageFormat.a4.landscape,
           margin: const pw.EdgeInsets.all(24),
           header: (context) => _buildPdfHeader(headerColor, goldColor, subtitle: 'Dokumentasi Foto'),
-          footer: (context) => _buildPdfFooter(context, activities.length, headerColor),
+          footer: (context) => _buildPdfFooter(context, freshActivities.length, headerColor),
           build: (context) => [
             for (final i in activitiesWithPhoto) ...[
               _buildPhotoSection(
-                activities[i],
+                freshActivities[i],
                 i + 1,
                 photoBeforeBytes[i],
                 photoAfterBytes[i],
@@ -362,7 +432,6 @@ class ExportService {
       );
     }
 
-    // Preview + share PDF
     final bulanPdf = DateFormat('MMMM', 'id_ID').format(
         DateTime(year ?? DateTime.now().year, month ?? DateTime.now().month));
     final tahunPdf = year ?? DateTime.now().year;

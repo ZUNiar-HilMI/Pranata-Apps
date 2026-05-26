@@ -36,39 +36,49 @@ class _ReportsScreenState extends State<ReportsScreen> {
     super.dispose();
   }
 
-  /// Load approved activities and apply filter + search
-  Future<List<Activity>> _loadApprovedActivities(String? userId, bool isAdmin) async {
-    final all = isAdmin
+  /// Load activities visible to the current user and apply filter + search.
+  Future<List<Activity>> _loadReportActivities({
+    required String? userId,
+    required bool isAdmin,
+    required bool isSuperAdmin,
+    required String? dinasId,
+  }) async {
+    final all = isSuperAdmin
         ? await _storage.getActivities()
+        : isAdmin
+        ? dinasId == null
+              ? <Activity>[]
+              : await _storage.getActivities(dinasId: dinasId)
         : await _storage.getActivitiesByUser(userId ?? '');
 
-    // Filter: only approved
-    var approved = all.where((a) => a.status == 'approved').toList();
+    var activities = all;
 
     // Period filter
     final now = DateTime.now();
     if (_selectedFilter == 'Bulan Ini') {
-      approved = approved
+      activities = activities
           .where((a) => a.date.year == now.year && a.date.month == now.month)
           .toList();
     } else if (_selectedFilter == 'Tahun Ini') {
-      approved = approved.where((a) => a.date.year == now.year).toList();
+      activities = activities.where((a) => a.date.year == now.year).toList();
     }
 
     // Search filter
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
-      approved = approved
-          .where((a) =>
-              a.name.toLowerCase().contains(q) ||
-              a.description.toLowerCase().contains(q) ||
-              a.location.toLowerCase().contains(q))
+      activities = activities
+          .where(
+            (a) =>
+                a.name.toLowerCase().contains(q) ||
+                a.description.toLowerCase().contains(q) ||
+                a.location.toLowerCase().contains(q),
+          )
           .toList();
     }
 
     // Sort newest first
-    approved.sort((a, b) => b.date.compareTo(a.date));
-    return approved;
+    activities.sort((a, b) => b.date.compareTo(a.date));
+    return activities;
   }
 
   String _formatRupiah(double amount) {
@@ -79,8 +89,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
   // ── Export dengan filter bulan (admin only) ─────────────────────────────────
   Future<void> _showExportMonthPicker(String type) async {
     final monthNames = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
     ];
 
     await showModalBottomSheet(
@@ -91,161 +111,208 @@ class _ReportsScreenState extends State<ReportsScreen> {
         int tempMonth = _exportMonth;
         int tempYear = _exportYear;
 
-        return StatefulBuilder(builder: (ctx, setModal) {
-          final screenHeight = MediaQuery.of(context).size.height;
-          final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
-          return Container(
-            constraints: BoxConstraints(maxHeight: screenHeight * 0.85),
-            decoration: const BoxDecoration(
-              color: AppColors.navyMid,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottomPadding),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Handle bar
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.goldMid.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Pilih Periode Export ${type.toUpperCase()}',
-                  style: const TextStyle(
-                    color: AppColors.goldLight,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Data yang diexport hanya kegiatan yang disetujui pada periode terpilih.',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                ),
-                const SizedBox(height: 20),
-
-                // Year picker
-                Row(
+        return StatefulBuilder(
+          builder: (ctx, setModal) {
+            final screenHeight = MediaQuery.of(context).size.height;
+            final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+            return Container(
+              constraints: BoxConstraints(maxHeight: screenHeight * 0.85),
+              decoration: const BoxDecoration(
+                color: AppColors.navyMid,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottomPadding),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Tahun:', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => setModal(() => tempYear--),
-                      icon: const Icon(Icons.remove_circle_outline, color: AppColors.goldMid),
+                    // Handle bar
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.goldMid.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 20),
                     Text(
-                      '$tempYear',
+                      'Pilih Periode Export ${type.toUpperCase()}',
                       style: const TextStyle(
                         color: AppColors.goldLight,
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => setModal(() => tempYear++),
-                      icon: const Icon(Icons.add_circle_outline, color: AppColors.goldMid),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Data yang diexport hanya kegiatan yang disetujui pada periode terpilih.',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
-                  ],
-                ),
+                    const SizedBox(height: 20),
 
-                const SizedBox(height: 12),
-                const Text('Bulan:', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                const SizedBox(height: 10),
-
-                // Month grid
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: List.generate(12, (i) {
-                    final month = i + 1;
-                    final isSelected = tempMonth == month;
-                    return GestureDetector(
-                      onTap: () => setModal(() => tempMonth = month),
-                      child: Container(
-                        width: (MediaQuery.of(context).size.width - 48 - 8 * 3) / 4,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.goldMid : AppColors.navyLight,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isSelected ? AppColors.goldLight : AppColors.goldMid.withOpacity(0.3),
+                    // Year picker
+                    Row(
+                      children: [
+                        const Text(
+                          'Tahun:',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
                           ),
                         ),
-                        child: Text(
-                          monthNames[i],
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: isSelected ? AppColors.navyDark : AppColors.textPrimary,
-                            fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => setModal(() => tempYear--),
+                          icon: const Icon(
+                            Icons.remove_circle_outline,
+                            color: AppColors.goldMid,
+                          ),
+                        ),
+                        Text(
+                          '$tempYear',
+                          style: const TextStyle(
+                            color: AppColors.goldLight,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => setModal(() => tempYear++),
+                          icon: const Icon(
+                            Icons.add_circle_outline,
+                            color: AppColors.goldMid,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Bulan:',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Month grid
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: List.generate(12, (i) {
+                        final month = i + 1;
+                        final isSelected = tempMonth == month;
+                        return GestureDetector(
+                          onTap: () => setModal(() => tempMonth = month),
+                          child: Container(
+                            width:
+                                (MediaQuery.of(context).size.width -
+                                    48 -
+                                    8 * 3) /
+                                4,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.goldMid
+                                  : AppColors.navyLight,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.goldLight
+                                    : AppColors.goldMid.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Text(
+                              monthNames[i],
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? AppColors.navyDark
+                                    : AppColors.textPrimary,
+                                fontSize: 12,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Export button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isExporting
+                            ? null
+                            : () async {
+                                Navigator.pop(ctx);
+                                setState(() {
+                                  _exportMonth = tempMonth;
+                                  _exportYear = tempYear;
+                                  _isExporting = true;
+                                  _exportingType = type;
+                                });
+                                await _runExport(type, tempMonth, tempYear);
+                                if (mounted) {
+                                  setState(() => _isExporting = false);
+                                }
+                              },
+                        icon: type == 'pdf'
+                            ? const Icon(Icons.picture_as_pdf)
+                            : const Icon(Icons.table_view),
+                        label: Text(
+                          'Export ${type.toUpperCase()} — ${monthNames[tempMonth - 1]} $tempYear',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: type == 'pdf'
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ),
-                    );
-                  }),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Export button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isExporting
-                        ? null
-                        : () async {
-                            Navigator.pop(ctx);
-                            setState(() {
-                              _exportMonth = tempMonth;
-                              _exportYear = tempYear;
-                              _isExporting = true;
-                              _exportingType = type;
-                            });
-                            await _runExport(type, tempMonth, tempYear);
-                            if (mounted) setState(() => _isExporting = false);
-                          },
-                    icon: type == 'pdf'
-                        ? const Icon(Icons.picture_as_pdf)
-                        : const Icon(Icons.table_view),
-                    label: Text(
-                      'Export ${type.toUpperCase()} — ${monthNames[tempMonth - 1]} $tempYear',
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: type == 'pdf'
-                          ? const Color(0xFFEF4444)
-                          : const Color(0xFF10B981),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          );
-        });
+              ),
+            );
+          },
+        );
       },
     );
   }
 
   Future<void> _runExport(String type, int month, int year) async {
     try {
-      // Ambil semua activities yang approved & sesuai bulan/tahun
-      final all = await _storage.getActivities();
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUser = authProvider.currentUser;
+      final all = currentUser?.isAdminDinas == true
+          ? currentUser?.dinasId == null
+                ? <Activity>[]
+                : await _storage.getActivities(dinasId: currentUser?.dinasId)
+          : await _storage.getActivities();
       final filtered = all
-          .where((a) =>
-              a.status == 'approved' &&
-              a.date.month == month &&
-              a.date.year == year)
+          .where(
+            (a) =>
+                a.status == 'approved' &&
+                a.date.month == month &&
+                a.date.year == year,
+          )
           .toList();
 
       if (filtered.isEmpty) {
@@ -271,7 +338,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Export ${type.toUpperCase()} berhasil (${filtered.length} kegiatan)'),
+            content: Text(
+              'Export ${type.toUpperCase()} berhasil (${filtered.length} kegiatan)',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -292,7 +361,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUser = authProvider.currentUser;
-    final isAdmin = currentUser?.role == 'admin';
+    final isAdmin = currentUser?.isAdminDinas ?? false;
+    final isSuperAdmin = currentUser?.isSuperAdmin ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.navyDark,
@@ -301,11 +371,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
           _buildHeader(),
           Expanded(
             child: FutureBuilder<List<Activity>>(
-              future: _loadApprovedActivities(currentUser?.id, isAdmin),
+              future: _loadReportActivities(
+                userId: currentUser?.id,
+                isAdmin: isAdmin,
+                isSuperAdmin: isSuperAdmin,
+                dinasId: currentUser?.dinasId,
+              ),
               builder: (context, snapshot) {
                 final activities = snapshot.data ?? [];
                 final totalBudget = activities.fold<double>(
-                  0, (sum, a) => sum + a.budget,
+                  0,
+                  (sum, a) => sum + a.budget,
                 );
                 final isLoading =
                     snapshot.connectionState == ConnectionState.waiting;
@@ -322,7 +398,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
 
                       // Export Buttons — ADMIN ONLY
-                      if (isAdmin) _buildAdminExportSection(),
+                      if (isAdmin || isSuperAdmin) _buildAdminExportSection(),
 
                       // Search Bar
                       _buildSearchBar(),
@@ -370,7 +446,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     color: AppColors.goldMid.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.arrow_back, color: AppColors.goldLight, size: 20),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: AppColors.goldLight,
+                    size: 20,
+                  ),
                 ),
               ),
               const Expanded(
@@ -423,7 +503,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Total Budget Digunakan',
+                'Total Budget Kegiatan',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
@@ -431,17 +511,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.check_circle_outline, color: Colors.white, size: 13),
+                    Icon(
+                      Icons.assignment_turned_in_outlined,
+                      color: Colors.white,
+                      size: 13,
+                    ),
                     SizedBox(width: 4),
                     Text(
-                      'Disetujui',
+                      'Semua Status',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 11,
@@ -481,10 +568,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 '$totalActivities Kegiatan',
               ),
               const SizedBox(width: 10),
-              _summaryChip(
-                Icons.filter_list,
-                _selectedFilter,
-              ),
+              _summaryChip(Icons.filter_list, _selectedFilter),
             ],
           ),
         ],
@@ -532,7 +616,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
         children: [
           const Row(
             children: [
-              Icon(Icons.download_outlined, color: AppColors.goldLight, size: 16),
+              Icon(
+                Icons.download_outlined,
+                color: AppColors.goldLight,
+                size: 16,
+              ),
               SizedBox(width: 6),
               Text(
                 'Export Laporan',
@@ -557,7 +645,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   icon: Icons.picture_as_pdf,
                   label: 'PDF',
                   color: const Color(0xFFEF4444),
-                  onTap: _isExporting ? null : () => _showExportMonthPicker('pdf'),
+                  onTap: _isExporting
+                      ? null
+                      : () => _showExportMonthPicker('pdf'),
                   isLoading: _isExporting && _exportingType == 'pdf',
                 ),
               ),
@@ -567,7 +657,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   icon: Icons.table_view,
                   label: 'Excel',
                   color: const Color(0xFF10B981),
-                  onTap: _isExporting ? null : () => _showExportMonthPicker('excel'),
+                  onTap: _isExporting
+                      ? null
+                      : () => _showExportMonthPicker('excel'),
                   isLoading: _isExporting && _exportingType == 'excel',
                 ),
               ),
@@ -642,11 +734,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
           style: const TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: 'Cari kegiatan...',
-            hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
-            prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+            hintStyle: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
+            prefixIcon: const Icon(
+              Icons.search,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
             suffixIcon: _searchQuery.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear, color: AppColors.textSecondary, size: 18),
+                    icon: const Icon(
+                      Icons.clear,
+                      color: AppColors.textSecondary,
+                      size: 18,
+                    ),
                     onPressed: () {
                       _searchController.clear();
                       setState(() => _searchQuery = '');
@@ -659,7 +762,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
             filled: true,
             fillColor: AppColors.navyCard,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
           ),
         ),
       ),
@@ -686,7 +792,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
               label: Text(
                 filter,
                 style: TextStyle(
-                  color: isSelected ? AppColors.navyDark : AppColors.textSecondary,
+                  color: isSelected
+                      ? AppColors.navyDark
+                      : AppColors.textSecondary,
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 ),
@@ -728,9 +836,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
               if (activities.isNotEmpty)
                 Text(
-                  _formatRupiah(
-                    activities.fold(0, (s, a) => s + a.budget),
-                  ),
+                  _formatRupiah(activities.fold(0, (s, a) => s + a.budget)),
                   style: const TextStyle(
                     color: AppColors.goldMid,
                     fontSize: 13,
@@ -779,7 +885,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Text(
             _searchQuery.isNotEmpty
                 ? 'Tidak ada hasil untuk "$_searchQuery"'
-                : 'Belum ada kegiatan yang disetujui',
+                : 'Belum ada kegiatan',
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.textSecondary,
@@ -791,12 +897,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const Padding(
               padding: EdgeInsets.only(top: 6),
               child: Text(
-                'Kegiatan yang sudah disetujui admin\nakan muncul di sini',
+                'Kegiatan yang berhasil disimpan\nakan muncul di sini',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
             ),
         ],
@@ -807,6 +910,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget _buildActivityItem(Activity activity) {
     final date = DateFormat('dd MMM yyyy').format(activity.date);
     final createdTime = DateFormat('HH:mm').format(activity.createdAt);
+    final status = _statusMeta(activity.status);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -826,14 +930,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.12),
+                  color: status.color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.check_circle_outline,
-                  color: AppColors.success,
-                  size: 24,
-                ),
+                child: Icon(status.icon, color: status.color, size: 24),
               ),
               const SizedBox(width: 12),
 
@@ -876,6 +976,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ],
           ),
 
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: status.color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: status.color.withOpacity(0.25)),
+              ),
+              child: Text(
+                status.label,
+                style: TextStyle(
+                  color: status.color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+
           // Description
           if (activity.description.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -884,7 +1005,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.notes, size: 14, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.notes,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -906,8 +1031,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.location_on_outlined,
-                    size: 14, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -945,8 +1073,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildPhotoThumb(String path, String label) {
     Widget imgWidget;
+    final isNetworkImage =
+        path.startsWith('http://') || path.startsWith('https://');
 
-    if (kIsWeb) {
+    if (isNetworkImage) {
+      imgWidget = Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: AppColors.navyLight,
+            child: const Icon(
+              Icons.broken_image,
+              color: AppColors.textSecondary,
+            ),
+          );
+        },
+      );
+    } else if (kIsWeb) {
       imgWidget = Container(
         color: AppColors.navyLight,
         child: const Icon(Icons.image, color: AppColors.textSecondary),
@@ -957,7 +1101,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ? Image.file(file, fit: BoxFit.cover)
           : Container(
               color: AppColors.navyLight,
-              child: const Icon(Icons.broken_image, color: AppColors.textSecondary),
+              child: const Icon(
+                Icons.broken_image,
+                color: AppColors.textSecondary,
+              ),
             );
     }
 
@@ -975,5 +1122,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
       ],
     );
+  }
+
+  ({IconData icon, Color color, String label}) _statusMeta(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return (
+          icon: Icons.check_circle_outline,
+          color: AppColors.success,
+          label: 'Disetujui',
+        );
+      case 'rejected':
+        return (
+          icon: Icons.cancel_outlined,
+          color: AppColors.error,
+          label: 'Ditolak',
+        );
+      default:
+        return (
+          icon: Icons.hourglass_empty_rounded,
+          color: AppColors.warning,
+          label: 'Pending',
+        );
+    }
   }
 }

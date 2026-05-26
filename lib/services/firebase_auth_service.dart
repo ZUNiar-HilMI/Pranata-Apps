@@ -2,10 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import '../models/user.dart';
 import '../models/dinas.dart';
+import '../config/api_config.dart';
+import 'api_auth_service.dart';
+import 'api_client.dart';
 
 class FirebaseAuthService {
-  final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  fb.FirebaseAuth get _auth => fb.FirebaseAuth.instance;
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
+  final ApiAuthService _apiAuth = ApiAuthService();
 
   static const String _usersCollection = 'users';
 
@@ -18,6 +22,17 @@ class FirebaseAuthService {
     String role = 'member',
     String? dinasId,
   }) async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.register(
+        username: username,
+        email: email,
+        password: password,
+        fullName: fullName,
+        role: role,
+        dinasId: dinasId,
+      );
+    }
+
     // 1. Pastikan username dan email belum digunakan di Firestore
     final usernameQuery = await _db
         .collection(_usersCollection)
@@ -81,6 +96,10 @@ class FirebaseAuthService {
 
   // ─── Login ───────────────────────────────────────────────────────────────
   Future<User?> login(String usernameOrEmail, String password) async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.login(usernameOrEmail, password);
+    }
+
     const genericError =
         'Login gagal. Periksa kembali username/email dan password.';
 
@@ -109,6 +128,9 @@ class FirebaseAuthService {
 
   // ─── Logout ──────────────────────────────────────────────────────────────
   Future<void> logout() async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.logout();
+    }
     await _auth.signOut();
   }
 
@@ -117,6 +139,13 @@ class FirebaseAuthService {
     required String currentPassword,
     required String newPassword,
   }) async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    }
+
     final fbUser = _auth.currentUser;
     if (fbUser == null) throw Exception('Sesi tidak ditemukan. Silakan login ulang.');
     if (fbUser.email == null) throw Exception('Akun tidak memiliki email terdaftar.');
@@ -146,21 +175,38 @@ class FirebaseAuthService {
 
   // ─── Get Current User ────────────────────────────────────────────────────
   Future<User?> getCurrentUser() async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.getCurrentUser();
+    }
+
     final fbUser = _auth.currentUser;
     if (fbUser == null) return null;
     return await _getUserById(fbUser.uid);
   }
 
-  bool get isLoggedIn => _auth.currentUser != null;
+  bool get isLoggedIn {
+    if (ApiConfig.useCustomBackend) {
+      return ApiClient().hasToken;
+    }
+    return _auth.currentUser != null;
+  }
 
   // ─── Get All Users ───────────────────────────────────────────────────────
   Future<List<User>> getAllUsers() async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.getAllUsers();
+    }
+
     final snapshot = await _db.collection(_usersCollection).get();
     return snapshot.docs.map((doc) => _docToUser(doc)).toList();
   }
 
   /// Get users yang tergabung dalam dinas tertentu (untuk admin dinas)
   Future<List<User>> getUsersByDinas(String dinasId) async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.getUsersByDinas(dinasId);
+    }
+
     final snapshot = await _db
         .collection(_usersCollection)
         .where('dinasId', isEqualTo: dinasId)
@@ -170,6 +216,10 @@ class FirebaseAuthService {
 
   // ─── Update User ─────────────────────────────────────────────────────────
   Future<void> updateUser(User user) async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.updateUser(user);
+    }
+
     await _db.collection(_usersCollection).doc(user.id).update({
       'username': user.username,
       'fullName': user.fullName,
@@ -181,6 +231,10 @@ class FirebaseAuthService {
 
   // ─── Update Profile Photo ─────────────────────────────────────────────────
   Future<void> updateProfilePhoto(String userId, String photoUrl) async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.updateProfilePhoto(userId, photoUrl);
+    }
+
     await _db.collection(_usersCollection).doc(userId).update({
       'photoUrl': photoUrl,
     });
@@ -188,6 +242,10 @@ class FirebaseAuthService {
 
   // ─── Update Role & Dinas ─────────────────────────────────────────────────
   Future<bool> updateUserRole(String email, String newRole, {String? dinasId}) async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.updateUserRole(email, newRole, dinasId: dinasId);
+    }
+
     final q = await _db
         .collection(_usersCollection)
         .where('email', isEqualTo: email)
@@ -203,6 +261,10 @@ class FirebaseAuthService {
 
   /// Update hanya field dinasId user
   Future<void> updateUserDinas(String userId, String? dinasId) async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.updateUserDinas(userId, dinasId);
+    }
+
     await _db.collection(_usersCollection).doc(userId).update({
       'dinasId': dinasId,
     });
@@ -210,6 +272,10 @@ class FirebaseAuthService {
 
   // ─── Delete User ─────────────────────────────────────────────────────────
   Future<bool> deleteUser(String id) async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.deleteUser(id);
+    }
+
     try {
       await _db.collection(_usersCollection).doc(id).delete();
       return true;
@@ -219,6 +285,10 @@ class FirebaseAuthService {
   }
 
   Future<bool> deleteUserByEmail(String email) async {
+    if (ApiConfig.useCustomBackend) {
+      return _apiAuth.deleteUserByEmail(email);
+    }
+
     final q = await _db
         .collection(_usersCollection)
         .where('email', isEqualTo: email)
@@ -232,6 +302,11 @@ class FirebaseAuthService {
   // ─── Seed Dinas Awal ─────────────────────────────────────────────────────
   /// Buat 3 dinas awal jika belum ada di Firestore.
   Future<void> seedDinasIfNeeded() async {
+    if (ApiConfig.useCustomBackend) {
+      // No-op for custom backend since it handles seeding at migration time
+      return;
+    }
+
     final dinasCol = _db.collection('dinas');
     for (final seed in Dinas.seedDinas) {
       final doc = await dinasCol.doc(seed['id']).get();

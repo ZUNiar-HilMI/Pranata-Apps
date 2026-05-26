@@ -12,6 +12,7 @@ import 'package:latlong2/latlong.dart';
 import '../models/activity.dart';
 import '../services/firestore_service.dart';
 import '../services/image_service.dart';
+import '../services/cloudinary_service.dart';
 import '../providers/auth_provider.dart';
 import '../config/app_theme.dart';
 
@@ -273,35 +274,35 @@ class _AddActivityScreenState extends State<AddActivityScreen>
     }
   }
 
-  // Upload foto ke ImgBB, returns URL publik permanen
+  // Upload foto ke Cloudinary, returns URL publik permanen
   Future<String?> _savePhotoToStorage(
     File? photoFile,
     String? photoWeb,
     XFile? photoXFile,
     String fileName,
   ) async {
-    if (kIsWeb) {
-      // Web: baca bytes dari XFile lalu upload ke ImgBB
-      if (photoXFile == null) return null;
-      try {
-        final bytes = Uint8List.fromList(await photoXFile.readAsBytes());
-        final url = await ImageService.uploadToImgBB(bytes, fileName);
-        debugPrint('🖼️ Web photo uploaded to ImgBB: $url');
-        return url;
-      } catch (e) {
-        debugPrint('⚠️ Web ImgBB upload failed: $e');
-        return null;
-      }
-    }
-    // Mobile: compress lalu upload ke ImgBB
-    if (photoFile == null) return null;
     try {
-      final url = await ImageService.compressAndUpload(photoFile, fileName);
-      debugPrint('🖼️ Mobile photo uploaded to ImgBB: $url');
-      return url;
+      if (kIsWeb) {
+        if (photoXFile == null) return null;
+        final bytes = Uint8List.fromList(await photoXFile.readAsBytes());
+        final url = await CloudinaryService.uploadBytes(
+          bytes,
+          folder: 'activities',
+        );
+        debugPrint('🖼️ Web photo uploaded to Cloudinary: $url');
+        return url;
+      } else {
+        if (photoFile == null) return null;
+        final url = await CloudinaryService.uploadImage(
+          photoFile,
+          folder: 'activities',
+        );
+        debugPrint('🖼️ Mobile photo uploaded to Cloudinary: $url');
+        return url;
+      }
     } catch (e) {
-      debugPrint('⚠️ Mobile ImgBB upload failed: $e');
-      return photoFile.path; // fallback local
+      debugPrint('⚠️ Cloudinary upload failed: $e');
+      return kIsWeb ? null : photoFile?.path;
     }
   }
 

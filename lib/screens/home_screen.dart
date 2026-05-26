@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'add_activity_screen.dart';
@@ -8,13 +9,16 @@ import 'login_screen.dart';
 import 'admin_verification_screen.dart';
 import 'settings_screen.dart';
 import 'notifications_screen.dart';
+import 'profile_screen.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../models/activity.dart';
+import '../models/user.dart';
 import '../widgets/offline_banner.dart';
 import 'package:image_picker/image_picker.dart';
 import '../config/app_theme.dart';
+import '../config/cloudinary_config.dart';
 import '../services/cloudinary_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -24,7 +28,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -48,11 +53,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    
+
     _rotationAnimation = Tween<double>(begin: 0.0, end: 0.125).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
@@ -75,18 +80,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           dinasId: user.dinasId,
         )
         .listen((count) {
-      if (mounted) {
-        setState(() => _notificationCount = count);
+          if (mounted) {
+            setState(() => _notificationCount = count);
 
-        // Show popup for member when unread notifications exist
-        if (count > 0 && !hasShownPopup && !user.isAdminDinas) {
-          hasShownPopup = true;
-          _showNotificationPopup(count);
-        }
-        // Reset popup flag when count drops to 0 (user read all)
-        if (count == 0) hasShownPopup = false;
-      }
-    });
+            // Show popup for member when unread notifications exist
+            if (count > 0 && !hasShownPopup && !user.isAdminDinas) {
+              hasShownPopup = true;
+              _showNotificationPopup(count);
+            }
+            // Reset popup flag when count drops to 0 (user read all)
+            if (count == 0) hasShownPopup = false;
+          }
+        });
   }
 
   void _showNotificationPopup(int count) {
@@ -103,7 +108,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.notifications_active, color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.notifications_active,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -113,7 +122,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   children: [
                     const Text(
                       'Notifikasi Baru',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                     Text(
                       'Anda memiliki $count notifikasi yang belum dibaca',
@@ -127,20 +139,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           backgroundColor: AppColors.goldDark,
           duration: const Duration(seconds: 4),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           action: SnackBarAction(
             label: 'Lihat',
             textColor: Colors.white,
             onPressed: () async {
-              final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
+              final user = Provider.of<AuthProvider>(
+                context,
+                listen: false,
+              ).currentUser;
               if (user != null) {
                 await NotificationService().markNotificationsRead(user.id);
               }
               if (mounted) {
                 await Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationsScreen(),
+                  ),
                 );
                 if (user != null) {
                   await NotificationService().markNotificationsRead(user.id);
@@ -196,7 +215,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               builder: (_, controller) => Container(
                 decoration: BoxDecoration(
                   color: th.scaffoldBackgroundColor,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
                 ),
                 child: const AddActivityScreen(),
               ),
@@ -220,7 +241,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: theme.dialogTheme.backgroundColor ?? theme.colorScheme.surface,
+        backgroundColor:
+            theme.dialogTheme.backgroundColor ?? theme.colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: theme.colorScheme.primary, width: 0.4),
@@ -231,7 +253,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             const SizedBox(width: 8),
             Text(
               'Edit Total Anggaran',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.primary,
+              ),
             ),
           ],
         ),
@@ -241,7 +267,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           children: [
             Text(
               'Masukkan batas total anggaran baru:',
-              style: TextStyle(fontSize: 14, color: theme.textTheme.bodySmall?.color),
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.textTheme.bodySmall?.color,
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -257,41 +286,65 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 fillColor: theme.scaffoldBackgroundColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.5)),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.primary,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Saran: Rp 1.000.000.000 (1 Miliar)',
-              style: TextStyle(fontSize: 12, color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7)),
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: TextStyle(color: theme.textTheme.bodySmall?.color)),
+            child: Text(
+              'Batal',
+              style: TextStyle(color: theme.textTheme.bodySmall?.color),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
               final newBudget = double.tryParse(budgetController.text);
               if (newBudget != null && newBudget > 0) {
                 final storageService = FirestoreService();
-                await storageService.setTotalBudgetLimit(newBudget);
+                final authProvider = Provider.of<AuthProvider>(
+                  context,
+                  listen: false,
+                );
+                await storageService.setTotalBudgetLimit(
+                  newBudget,
+                  dinasId: authProvider.currentUser?.isAdminDinas == true
+                      ? authProvider.currentUser?.dinasId
+                      : null,
+                );
                 if (mounted) {
                   Navigator.pop(context);
                   setState(() {});
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Total anggaran diperbarui ke ${_formatCurrency(newBudget)}'),
+                      content: Text(
+                        'Total anggaran diperbarui ke ${_formatCurrency(newBudget)}',
+                      ),
                       backgroundColor: AppColors.success,
                       behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   );
                 }
@@ -326,7 +379,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        backgroundColor: theme.dialogTheme.backgroundColor ?? theme.colorScheme.surface,
+        backgroundColor:
+            theme.dialogTheme.backgroundColor ?? theme.colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: theme.colorScheme.primary, width: 0.4),
@@ -342,7 +396,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.calendar_today, color: theme.colorScheme.primary, size: 20),
+                      Icon(
+                        Icons.calendar_today,
+                        color: theme.colorScheme.primary,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Pilih Tahun',
@@ -355,7 +413,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, color: theme.textTheme.bodySmall?.color),
+                    icon: Icon(
+                      Icons.close,
+                      color: theme.textTheme.bodySmall?.color,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -375,14 +436,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       },
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? theme.colorScheme.primary.withValues(alpha: 0.15)
+                              ? theme.colorScheme.primary.withValues(
+                                  alpha: 0.15,
+                                )
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           border: isSelected
-                              ? Border.all(color: theme.colorScheme.primary, width: 2)
+                              ? Border.all(
+                                  color: theme.colorScheme.primary,
+                                  width: 2,
+                                )
                               : null,
                         ),
                         child: Row(
@@ -392,14 +461,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               year.toString(),
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
                                 color: isSelected
                                     ? theme.colorScheme.secondary
                                     : theme.textTheme.bodyMedium?.color,
                               ),
                             ),
                             if (isSelected)
-                              Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 20),
+                              Icon(
+                                Icons.check_circle,
+                                color: theme.colorScheme.primary,
+                                size: 20,
+                              ),
                           ],
                         ),
                       ),
@@ -424,19 +499,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       body: Stack(
         children: [
           // Offline Banner (at top, above everything)
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: OfflineBanner(),
-          ),
+          const Positioned(top: 0, left: 0, right: 0, child: OfflineBanner()),
 
           // Main content
           Column(
             children: [
               // Header
               _buildHeader(),
-              
+
               // Main Content
               Expanded(
                 child: SingleChildScrollView(
@@ -444,7 +514,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     padding: const EdgeInsets.all(12),
                     child: Consumer<AuthProvider>(
                       builder: (context, authProvider, _) {
-                        final isAdmin = authProvider.currentUser?.isAdminDinas ?? false;
+                        final isAdmin =
+                            authProvider.currentUser?.isAdminDinas ?? false;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -472,27 +543,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ],
           ),
-          
+
           // Speed dial overlay (full screen)
           if (_isSpeedDialOpen)
             Positioned.fill(
               child: GestureDetector(
                 onTap: _toggleSpeedDial,
-                child: Container(
-                  color: Colors.black.withOpacity(0.5),
-                ),
+                child: Container(color: Colors.black.withOpacity(0.5)),
               ),
             ),
-          
+
           // Speed dial menu items - WhatsApp style (vertikal di kanan bawah)
           if (_isSpeedDialOpen)
             Positioned.fill(
               child: Builder(
                 builder: (context) {
                   final isAdmin =
-                      Provider.of<AuthProvider>(context, listen: false)
-                              .currentUser
-                              ?.isAdminDinas ?? false;
+                      Provider.of<AuthProvider>(
+                        context,
+                        listen: false,
+                      ).currentUser?.isAdminDinas ??
+                      false;
 
                   // Jarak dari bawah untuk item pertama (paling bawah)
                   const double startBottom = 100.0;
@@ -632,21 +703,40 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                            color:
+                                theme.cardTheme.color ??
+                                theme.colorScheme.surface,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.3,
+                              ),
+                            ),
                           ),
                           child: Column(
                             children: [
-                              _buildDrawerInfoRow(Icons.mail_outline, 'EMAIL', user?.email ?? '-', context),
-                              Container(height: 0.4, margin: const EdgeInsets.symmetric(horizontal: 16), color: theme.colorScheme.primary.withValues(alpha: 0.25)),
-                               _buildDrawerInfoRow(
+                              _buildDrawerInfoRow(
+                                Icons.mail_outline,
+                                'EMAIL',
+                                user?.email ?? '-',
+                                context,
+                              ),
+                              Container(
+                                height: 0.4,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.25,
+                                ),
+                              ),
+                              _buildDrawerInfoRow(
                                 Icons.corporate_fare,
                                 'DINAS',
                                 isAdmin
                                     ? DinasTheme.dinasLabel(user?.dinasId)
                                     : DinasTheme.dinasLabel(user?.dinasId),
-                                context
+                                context,
                               ),
                             ],
                           ),
@@ -659,29 +749,64 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Statistik',
-                                style: TextStyle(color: theme.colorScheme.primary, fontSize: 13, fontWeight: FontWeight.bold)),
+                            Text(
+                              'Statistik',
+                              style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 10),
                             FutureBuilder<List<Activity>>(
                               future: isAdmin
-                                  ? FirestoreService().getActivities(dinasId: user?.dinasId)
-                                  : FirestoreService().getActivitiesByUser(user?.id ?? ''),
+                                  ? FirestoreService().getActivities(
+                                      dinasId: user?.dinasId,
+                                    )
+                                  : FirestoreService().getActivitiesByUser(
+                                      user?.id ?? '',
+                                    ),
                               builder: (context, snapshot) {
                                 final all = snapshot.data ?? [];
-                                final approved = all.where((a) => a.status == 'approved').length;
-                                final pending = all.where((a) => a.status == 'pending').length;
+                                final approved = all
+                                    .where((a) => a.status == 'approved')
+                                    .length;
+                                final pending = all
+                                    .where((a) => a.status == 'pending')
+                                    .length;
                                 return Row(
                                   children: [
-                                    Expanded(child: _buildDrawerStatCard('Total', all.length.toString(), Icons.list_alt, theme.colorScheme.primary, context)),
+                                    Expanded(
+                                      child: _buildDrawerStatCard(
+                                        'Total',
+                                        all.length.toString(),
+                                        Icons.list_alt,
+                                        theme.colorScheme.primary,
+                                        context,
+                                      ),
+                                    ),
                                     const SizedBox(width: 8),
-                                    Expanded(child: _buildDrawerStatCard('Disetujui', approved.toString(), Icons.check_circle_outline, theme.colorScheme.primary, context)), // Assuming no specific success color in standard theme
+                                    Expanded(
+                                      child: _buildDrawerStatCard(
+                                        'Disetujui',
+                                        approved.toString(),
+                                        Icons.check_circle_outline,
+                                        theme.colorScheme.primary,
+                                        context,
+                                      ),
+                                    ), // Assuming no specific success color in standard theme
                                     const SizedBox(width: 8),
-                                    Expanded(child: _buildDrawerStatCard(
-                                      'Pending', pending.toString(),
-                                      Icons.hourglass_top_outlined,
-                                      (isAdmin && pending > 0) ? theme.colorScheme.error : theme.colorScheme.secondary,
-                                      context
-                                    )),
+                                    Expanded(
+                                      child: _buildDrawerStatCard(
+                                        'Pending',
+                                        pending.toString(),
+                                        Icons.hourglass_top_outlined,
+                                        (isAdmin && pending > 0)
+                                            ? theme.colorScheme.error
+                                            : theme.colorScheme.secondary,
+                                        context,
+                                      ),
+                                    ),
                                   ],
                                 );
                               },
@@ -696,22 +821,49 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Pengaturan Akun',
-                                style: TextStyle(color: theme.colorScheme.primary, fontSize: 13, fontWeight: FontWeight.bold)),
+                            Text(
+                              'Pengaturan Akun',
+                              style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 10),
                             Container(
                               decoration: BoxDecoration(
-                                color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                                color:
+                                    theme.cardTheme.color ??
+                                    theme.colorScheme.surface,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                                border: Border.all(
+                                  color: theme.colorScheme.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                ),
                               ),
                               child: Column(
                                 children: [
-                                  _buildDrawerMenuItem(Icons.photo_camera_outlined, 'Ganti Foto Profil', _showPhotoSourceSheet, context),
+                                  _buildDrawerMenuItem(
+                                    Icons.photo_camera_outlined,
+                                    'Ganti Foto Profil',
+                                    _showPhotoSourceSheet,
+                                    context,
+                                  ),
                                   _drawerMenuDivider(context),
-                                  _buildDrawerMenuItem(Icons.lock_outline, 'Keamanan & Password', _showChangePasswordSheet, context),
+                                  _buildDrawerMenuItem(
+                                    Icons.lock_outline,
+                                    'Keamanan & Password',
+                                    _showChangePasswordSheet,
+                                    context,
+                                  ),
                                   _drawerMenuDivider(context),
-                                  _buildDrawerMenuItem(Icons.info_outline, 'Tentang Aplikasi', _showAboutSheet, context),
+                                  _buildDrawerMenuItem(
+                                    Icons.info_outline,
+                                    'Tentang Aplikasi',
+                                    _showAboutSheet,
+                                    context,
+                                  ),
                                 ],
                               ),
                             ),
@@ -729,7 +881,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
                 decoration: BoxDecoration(
-                  border: Border(top: BorderSide(color: theme.dividerColor, width: 0.3)),
+                  border: Border(
+                    top: BorderSide(color: theme.dividerColor, width: 0.3),
+                  ),
                 ),
                 child: SizedBox(
                   width: double.infinity,
@@ -740,18 +894,35 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       if (mounted) {
                         Navigator.pushAndRemoveUntil(
                           context,
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
                           (route) => false,
                         );
                       }
                     },
-                    icon: Icon(Icons.logout, color: theme.colorScheme.error, size: 18),
-                    label: Text('Keluar',
-                        style: TextStyle(color: theme.colorScheme.error, fontSize: 14, fontWeight: FontWeight.bold)),
+                    icon: Icon(
+                      Icons.logout,
+                      color: theme.colorScheme.error,
+                      size: 18,
+                    ),
+                    label: Text(
+                      'Keluar',
+                      style: TextStyle(
+                        color: theme.colorScheme.error,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: theme.colorScheme.error, width: 1),
+                      side: BorderSide(
+                        color: theme.colorScheme.error,
+                        width: 1,
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                 ),
@@ -764,7 +935,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   // ── Drawer: profile header ────────────────────────────────────────────────
-  Widget _buildDrawerProfileHeader(user, AuthProvider authProvider) {
+  Widget _buildDrawerProfileHeader(dynamic user, AuthProvider authProvider) {
     return Builder(
       builder: (context) {
         final theme = Theme.of(context);
@@ -774,105 +945,147 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [theme.colorScheme.surface, theme.scaffoldBackgroundColor],
+              colors: [
+                theme.colorScheme.surface,
+                theme.scaffoldBackgroundColor,
+              ],
             ),
           ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 12, 24),
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  icon: Icon(Icons.close, color: theme.colorScheme.primary, size: 22),
-                  onPressed: () => Navigator.pop(context),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Avatar
-              GestureDetector(
-                onTap: _isUploadingPhoto ? null : _showPhotoSourceSheet,
-                child: Stack(
-                  children: [
-                    Container(
-                      width: 94,
-                      height: 94,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: theme.colorScheme.primary, width: 2.5),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 24),
+              child: Column(
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: theme.colorScheme.primary,
+                        size: 22,
                       ),
-                      child: ClipOval(
-                        child: _isUploadingPhoto
-                            ? Container(
-                                color: theme.colorScheme.surface,
-                                child: Center(
-                                  child: CircularProgressIndicator(color: theme.colorScheme.primary, strokeWidth: 2.5),
-                                ),
-                              )
-                            : (user?.photoUrl != null && user!.photoUrl!.isNotEmpty)
+                      onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Avatar
+                  GestureDetector(
+                    onTap: _isUploadingPhoto ? null : _showPhotoSourceSheet,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 94,
+                          height: 94,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.colorScheme.primary,
+                              width: 2.5,
+                            ),
+                          ),
+                          child: ClipOval(
+                            child: _isUploadingPhoto
+                                ? Container(
+                                    color: theme.colorScheme.surface,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        color: theme.colorScheme.primary,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    ),
+                                  )
+                                : (user?.photoUrl != null &&
+                                      user!.photoUrl!.isNotEmpty)
                                 ? Image.network(
                                     user.photoUrl!,
                                     fit: BoxFit.cover,
-                                    loadingBuilder: (ctx, child, prog) => prog == null
-                                          ? child
-                                          : Container(
-                                              color: theme.colorScheme.surface,
-                                              child: Center(
-                                                child: CircularProgressIndicator(color: theme.colorScheme.primary, strokeWidth: 2),
+                                    loadingBuilder: (ctx, child, prog) =>
+                                        prog == null
+                                        ? child
+                                        : Container(
+                                            color: theme.colorScheme.surface,
+                                            child: Center(
+                                              child: CircularProgressIndicator(
+                                                color:
+                                                    theme.colorScheme.primary,
+                                                strokeWidth: 2,
                                               ),
                                             ),
-                                    errorBuilder: (ctx, _, __) => _drawerDefaultAvatar(user?.fullName),
+                                          ),
+                                    errorBuilder: (ctx, error, stackTrace) =>
+                                        _drawerDefaultAvatar(user?.fullName),
                                   )
                                 : _drawerDefaultAvatar(user?.fullName),
+                          ),
+                        ),
+                        if (!_isUploadingPhoto)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: theme.colorScheme.surface,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.camera_alt,
+                                color: theme.colorScheme.onPrimary,
+                                size: 13,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    user?.fullName ?? 'User',
+                    style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.4),
                       ),
                     ),
-                    if (!_isUploadingPhoto)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: theme.colorScheme.surface, width: 2),
-                          ),
-                          child: Icon(Icons.camera_alt, color: theme.colorScheme.onPrimary, size: 13),
-                        ),
+                    child: Text(
+                      user?.isAdminDinas == true
+                          ? 'Administrator Dinas'
+                          : 'Member',
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                user?.fullName ?? 'User',
-                style: TextStyle(color: theme.colorScheme.primary, fontSize: 18, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: theme.colorScheme.primary.withOpacity(0.4)),
-                ),
-                child: Text(
-                  user?.isAdminDinas == true ? 'Administrator Dinas' : 'Member',
-                  style: TextStyle(color: theme.colorScheme.primary, fontSize: 11, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
-      }
+        );
+      },
     );
   }
 
@@ -885,17 +1098,32 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           child: Center(
             child: Text(
               (name != null && name.isNotEmpty)
-                  ? name.trim().split(' ').map((w) => w[0]).take(2).join().toUpperCase()
+                  ? name
+                        .trim()
+                        .split(' ')
+                        .map((w) => w[0])
+                        .take(2)
+                        .join()
+                        .toUpperCase()
                   : 'U',
-              style: TextStyle(color: theme.colorScheme.primary, fontSize: 28, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: theme.colorScheme.primary,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         );
-      }
+      },
     );
   }
 
-  Widget _buildDrawerInfoRow(IconData icon, String label, String value, BuildContext context) {
+  Widget _buildDrawerInfoRow(
+    IconData icon,
+    String label,
+    String value,
+    BuildContext context,
+  ) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -904,7 +1132,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.12),
+              color: theme.colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: theme.colorScheme.primary, size: 16),
@@ -914,13 +1142,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: TextStyle(
-                        color: theme.textTheme.bodySmall?.color, fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 1.2)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: theme.textTheme.bodySmall?.color,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(value,
-                    style: TextStyle(color: theme.textTheme.bodyLarge?.color, fontSize: 13, fontWeight: FontWeight.w600),
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -929,30 +1169,56 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildDrawerStatCard(String title, String value, IconData icon, Color color, BuildContext context) {
+  Widget _buildDrawerStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+    BuildContext context,
+  ) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
       decoration: BoxDecoration(
         color: theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.25)),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.25),
+        ),
       ),
       child: Column(
         children: [
           Icon(icon, color: color, size: 16),
           const SizedBox(height: 6),
-          Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(title,
-              style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 9, fontWeight: FontWeight.w500),
-              textAlign: TextAlign.center),
+          Text(
+            title,
+            style: TextStyle(
+              color: theme.textTheme.bodySmall?.color,
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDrawerMenuItem(IconData icon, String title, VoidCallback onTap, BuildContext context) {
+  Widget _buildDrawerMenuItem(
+    IconData icon,
+    String title,
+    VoidCallback onTap,
+    BuildContext context,
+  ) {
     final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
@@ -964,10 +1230,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Icon(icon, color: theme.colorScheme.primary, size: 20),
             const SizedBox(width: 12),
             Expanded(
-                child: Text(title,
-                    style: TextStyle(
-                        color: theme.textTheme.bodyLarge?.color, fontSize: 14, fontWeight: FontWeight.w500))),
-            Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color, size: 18),
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: theme.textTheme.bodyLarge?.color,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: theme.textTheme.bodySmall?.color,
+              size: 18,
+            ),
           ],
         ),
       ),
@@ -976,56 +1252,108 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Widget _drawerMenuDivider(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(height: 0.4, margin: const EdgeInsets.symmetric(horizontal: 14), color: theme.colorScheme.primary.withOpacity(0.25));
+    return Container(
+      height: 0.4,
+      margin: const EdgeInsets.symmetric(horizontal: 14),
+      color: theme.colorScheme.primary.withValues(alpha: 0.25),
+    );
   }
 
   // ── Photo upload ──────────────────────────────────────────────────────────
   Future<void> _pickAndUploadPhoto(ImageSource source) async {
     Navigator.pop(context); // dismiss bottom sheet
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 80);
+    final picked = await picker.pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+    );
     if (picked == null) return;
-    setState(() => _isUploadingPhoto = true);
+
     try {
       final bytes = await picked.readAsBytes();
-      final url = await CloudinaryService.uploadBytes(bytes, folder: 'profile_photos');
+      if (!mounted) return;
+
+      // Tampilkan pratinjau (preview) circular dan interactive crop sebelum mengunggah
+      final Uint8List? croppedBytes = await showDialog<Uint8List?>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => ImageAdjustDialog(imageBytes: bytes),
+      );
+
+      if (croppedBytes == null) return; // User membatalkan
+
+      setState(() => _isUploadingPhoto = true);
+
+      // Unggah menggunakan folder dari konfigurasi .env
+      final url = await CloudinaryService.uploadBytes(
+        croppedBytes,
+        folder: CloudinaryConfig.folder,
+      );
+
       if (url != null && mounted) {
         final auth = Provider.of<AuthProvider>(context, listen: false);
         await auth.updateProfilePhoto(url);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Row(children: [
-              Icon(Icons.check_circle, color: Colors.white, size: 18),
-              SizedBox(width: 8),
-              Text('Foto profil berhasil diperbarui!'),
-            ]),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text('Foto profil berhasil diperbarui!'),
+                ],
+              ),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
         }
       } else if (mounted) {
         _showDrawerError('Upload gagal. Periksa koneksi internet.');
       }
     } catch (e) {
-      if (mounted) _showDrawerError('Gagal mengunggah foto: ${e.toString().replaceAll('Exception: ', '')}');
+      if (mounted) {
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        // Periksa jika error terkait Cloudinary config
+        if (errorMsg.contains('upload preset tidak dikonfigurasi') ||
+            errorMsg.contains('Upload preset not found')) {
+          _showDrawerError(
+            'Gagal mengunggah foto: Upload Preset tidak ditemukan di akun Cloudinary Anda.\n'
+            'Konfigurasi Aktif: Cloud="${CloudinaryConfig.cloudName}", Preset="${CloudinaryConfig.uploadPreset}", Folder="${CloudinaryConfig.folder}"\n'
+            'Harap buat Unsigned Preset tersebut di Dashboard Cloudinary.',
+          );
+        } else {
+          _showDrawerError(
+            'Gagal mengunggah foto: $errorMsg (Cloud: "${CloudinaryConfig.cloudName}", Preset: "${CloudinaryConfig.uploadPreset}")',
+          );
+        }
+      }
     } finally {
       if (mounted) setState(() => _isUploadingPhoto = false);
     }
   }
 
   void _showDrawerError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Row(children: [
-        const Icon(Icons.error_outline, color: Colors.white, size: 18),
-        const SizedBox(width: 8),
-        Expanded(child: Text(msg)),
-      ]),
-      backgroundColor: AppColors.error,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 4),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text(msg)),
+          ],
+        ),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   void _showPhotoSourceSheet() {
@@ -1051,17 +1379,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
             const SizedBox(height: 20),
-            Text('Pilih Sumber Foto',
-                style: TextStyle(
-                    color: theme.colorScheme.secondary, fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(
+              'Pilih Sumber Foto',
+              style: TextStyle(
+                color: theme.colorScheme.secondary,
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 20),
             _buildPhotoSourceTile(
-                Icons.photo_library_outlined, 'Galeri', 'Pilih dari galeri foto',
-                () => _pickAndUploadPhoto(ImageSource.gallery), theme),
+              Icons.photo_library_outlined,
+              'Galeri',
+              'Pilih dari galeri foto',
+              () => _pickAndUploadPhoto(ImageSource.gallery),
+              theme,
+            ),
             const SizedBox(height: 10),
             _buildPhotoSourceTile(
-                Icons.camera_alt_outlined, 'Kamera', 'Ambil foto baru',
-                () => _pickAndUploadPhoto(ImageSource.camera), theme),
+              Icons.camera_alt_outlined,
+              'Kamera',
+              'Ambil foto baru',
+              () => _pickAndUploadPhoto(ImageSource.camera),
+              theme,
+            ),
           ],
         ),
       ),
@@ -1069,7 +1410,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildPhotoSourceTile(
-      IconData icon, String label, String sub, VoidCallback onTap, ThemeData theme) {
+    IconData icon,
+    String label,
+    String sub,
+    VoidCallback onTap,
+    ThemeData theme,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -1078,7 +1424,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         decoration: BoxDecoration(
           color: theme.scaffoldBackgroundColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.25)),
+          border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.25),
+          ),
         ),
         child: Row(
           children: [
@@ -1094,17 +1442,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: TextStyle(
-                        color: theme.textTheme.bodyLarge?.color,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600)),
-                Text(sub,
-                    style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 12)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  sub,
+                  style: TextStyle(
+                    color: theme.textTheme.bodySmall?.color,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
             const Spacer(),
-            Icon(Icons.chevron_right, color: theme.textTheme.bodySmall?.color, size: 20),
+            Icon(
+              Icons.chevron_right,
+              color: theme.textTheme.bodySmall?.color,
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -1117,7 +1477,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final currentCtrl = TextEditingController();
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
-    bool showCurrent = false, showNew = false, showConfirm = false, isLoading = false;
+    bool showCurrent = false,
+        showNew = false,
+        showConfirm = false,
+        isLoading = false;
 
     final th = Theme.of(context);
     showModalBottomSheet(
@@ -1126,11 +1489,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             decoration: BoxDecoration(
               color: th.cardTheme.color ?? th.colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
             ),
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
             child: Form(
@@ -1150,23 +1517,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Text('Ganti Password',
-                      style: TextStyle(
-                          color: th.colorScheme.secondary, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Ganti Password',
+                    style: TextStyle(
+                      color: th.colorScheme.secondary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text('Masukkan password lama dan password baru Anda',
-                      style: TextStyle(color: th.textTheme.bodySmall?.color, fontSize: 12)),
+                  Text(
+                    'Masukkan password lama dan password baru Anda',
+                    style: TextStyle(
+                      color: th.textTheme.bodySmall?.color,
+                      fontSize: 12,
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   _drawerPasswordField(
-                    controller: currentCtrl, label: 'Password Saat Ini',
-                    obscure: !showCurrent, toggle: () => setModal(() => showCurrent = !showCurrent),
-                    validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+                    controller: currentCtrl,
+                    label: 'Password Saat Ini',
+                    obscure: !showCurrent,
+                    toggle: () => setModal(() => showCurrent = !showCurrent),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Wajib diisi' : null,
                     theme: th,
                   ),
                   const SizedBox(height: 14),
                   _drawerPasswordField(
-                    controller: newCtrl, label: 'Password Baru',
-                    obscure: !showNew, toggle: () => setModal(() => showNew = !showNew),
+                    controller: newCtrl,
+                    label: 'Password Baru',
+                    obscure: !showNew,
+                    toggle: () => setModal(() => showNew = !showNew),
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
                       if (v.length < 6) return 'Minimal 6 karakter';
@@ -1176,8 +1558,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                   const SizedBox(height: 14),
                   _drawerPasswordField(
-                    controller: confirmCtrl, label: 'Konfirmasi Password Baru',
-                    obscure: !showConfirm, toggle: () => setModal(() => showConfirm = !showConfirm),
+                    controller: confirmCtrl,
+                    label: 'Konfirmasi Password Baru',
+                    obscure: !showConfirm,
+                    toggle: () => setModal(() => showConfirm = !showConfirm),
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
                       if (v != newCtrl.text) return 'Password tidak cocok';
@@ -1195,55 +1579,98 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               if (!formKey.currentState!.validate()) return;
                               setModal(() => isLoading = true);
                               try {
-                                final auth = Provider.of<AuthProvider>(context, listen: false);
+                                final auth = Provider.of<AuthProvider>(
+                                  context,
+                                  listen: false,
+                                );
                                 await auth.changePassword(
                                   currentPassword: currentCtrl.text.trim(),
                                   newPassword: newCtrl.text.trim(),
                                 );
                                 if (ctx.mounted) Navigator.pop(ctx);
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                    content: const Row(children: [
-                                      Icon(Icons.check_circle, color: Colors.white, size: 18),
-                                      SizedBox(width: 8),
-                                      Text('Password berhasil diubah!'),
-                                    ]),
-                                    backgroundColor: AppColors.success,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  ));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.check_circle,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text('Password berhasil diubah!'),
+                                        ],
+                                      ),
+                                      backgroundColor: AppColors.success,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
                                 }
                               } catch (e) {
                                 setModal(() => isLoading = false);
                                 if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                                    content: Row(children: [
-                                      const Icon(Icons.error_outline, color: Colors.white, size: 18),
-                                      const SizedBox(width: 8),
-                                      Expanded(child: Text(e.toString().replaceAll('Exception: ', ''))),
-                                    ]),
-                                    backgroundColor: AppColors.error,
-                                    behavior: SnackBarBehavior.floating,
-                                    duration: const Duration(seconds: 4),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  ));
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.error_outline,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              e.toString().replaceAll(
+                                                'Exception: ',
+                                                '',
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: AppColors.error,
+                                      behavior: SnackBarBehavior.floating,
+                                      duration: const Duration(seconds: 4),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  );
                                 }
                               }
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: th.colorScheme.primary,
-                        disabledBackgroundColor: th.colorScheme.primary.withValues(alpha: 0.3),
+                        disabledBackgroundColor: th.colorScheme.primary
+                            .withValues(alpha: 0.3),
                         padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
                       child: isLoading
                           ? SizedBox(
-                              height: 20, width: 20,
-                              child: CircularProgressIndicator(color: th.colorScheme.onPrimary, strokeWidth: 2.5))
-                          : Text('Simpan Password',
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: th.colorScheme.onPrimary,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Text(
+                              'Simpan Password',
                               style: TextStyle(
-                                  color: th.colorScheme.onPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+                                color: th.colorScheme.onPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -1270,19 +1697,47 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 13),
+        labelStyle: TextStyle(
+          color: theme.textTheme.bodySmall?.color,
+          fontSize: 13,
+        ),
         filled: true,
         fillColor: theme.scaffoldBackgroundColor,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.3))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.3))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5)),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.error)),
-        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
+        ),
         errorStyle: TextStyle(color: theme.colorScheme.error, fontSize: 11),
         suffixIcon: IconButton(
-          icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-              color: theme.textTheme.bodySmall?.color, size: 20),
+          icon: Icon(
+            obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            color: theme.textTheme.bodySmall?.color,
+            size: 20,
+          ),
           onPressed: toggle,
         ),
       ),
@@ -1306,50 +1761,82 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.35),
-                    borderRadius: BorderRadius.circular(2))),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.35),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const SizedBox(height: 28),
             Container(
-              width: 72, height: 72,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: theme.colorScheme.primary, width: 2),
               ),
-              child: Icon(Icons.shield_outlined, color: theme.colorScheme.primary, size: 38),
+              child: Icon(
+                Icons.shield_outlined,
+                color: theme.colorScheme.primary,
+                size: 38,
+              ),
             ),
             const SizedBox(height: 16),
-            Text('PRANATA',
-                style: TextStyle(
-                    color: theme.colorScheme.primary, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 3)),
+            Text(
+              'PRANATA',
+              style: TextStyle(
+                color: theme.colorScheme.primary,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 3,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Proses Anggaran lan Tata Data',
-                style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 12),
-                textAlign: TextAlign.center),
+            Text(
+              'Proses Anggaran lan Tata Data',
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
-              child:
-                  Text('Versi 2.4.0', style: TextStyle(color: theme.colorScheme.primary, fontSize: 11, fontWeight: FontWeight.w600)),
+                color: theme.colorScheme.primary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Versi 2.4.0',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             const SizedBox(height: 24),
-            Container(height: 0.5, color: theme.colorScheme.primary.withOpacity(0.25)),
+            Container(
+              height: 0.5,
+              color: theme.colorScheme.primary.withOpacity(0.25),
+            ),
             const SizedBox(height: 20),
-            Text('© 2026 Muhammad Zuniar Hilmi. All rights reserved.',
-                style: TextStyle(color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7), fontSize: 10), textAlign: TextAlign.center),
+            Text(
+              '© 2026 Muhammad Zuniar Hilmi. All rights reserved.',
+              style: TextStyle(
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                fontSize: 10,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
     );
   }
-
-
-
 
   // ── Admin: pending activities banner ──────────────────────────────────────
   Widget _buildAdminPendingBanner(BuildContext context) {
@@ -1371,7 +1858,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             decoration: BoxDecoration(
               color: theme.colorScheme.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
@@ -1382,7 +1871,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     color: theme.colorScheme.surface,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.pending_actions, color: theme.colorScheme.primary, size: 20),
+                  child: Icon(
+                    Icons.pending_actions,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1399,12 +1892,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       ),
                       Text(
                         'Ketuk untuk review dan verifikasi',
-                        style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 11),
+                        style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios, color: theme.textTheme.bodySmall?.color, size: 14),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: theme.textTheme.bodySmall?.color,
+                  size: 14,
+                ),
               ],
             ),
           ),
@@ -1425,12 +1925,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [theme.colorScheme.surface, Color.lerp(theme.colorScheme.surface, theme.colorScheme.primary, 0.20)!],
+          colors: [
+            theme.colorScheme.surface,
+            Color.lerp(
+              theme.colorScheme.surface,
+              theme.colorScheme.primary,
+              0.20,
+            )!,
+          ],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         border: Border(
-          bottom: BorderSide(color: theme.colorScheme.primary.withOpacity(0.5), width: 1.5),
+          bottom: BorderSide(
+            color: theme.colorScheme.primary.withOpacity(0.5),
+            width: 1.5,
+          ),
         ),
         boxShadow: [
           BoxShadow(
@@ -1448,7 +1958,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             children: [
               // Menu button
               IconButton(
-                icon: Icon(Icons.menu, color: theme.colorScheme.primary, size: 24),
+                icon: Icon(
+                  Icons.menu,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
 
@@ -1459,18 +1973,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   children: [
                     // Dinas badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.primary.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.5), width: 1),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.5),
+                          width: 1,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            width: 7, height: 7,
-                            decoration: BoxDecoration(color: theme.colorScheme.primary, shape: BoxShape.circle),
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                           const SizedBox(width: 5),
                           Text(
@@ -1485,14 +2009,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           if (isAdmin) ...[
                             const SizedBox(width: 4),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1,
+                              ),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.primary.withOpacity(0.2),
+                                color: theme.colorScheme.primary.withOpacity(
+                                  0.2,
+                                ),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 'ADMIN',
-                                style: TextStyle(color: theme.colorScheme.primary, fontSize: 8, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  color: theme.colorScheme.primary,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -1519,11 +2052,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               GestureDetector(
                 onTap: _showYearSelector,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: theme.colorScheme.primary.withOpacity(0.4), width: 0.5),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withOpacity(0.4),
+                      width: 0.5,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1537,7 +2076,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                       ),
                       const SizedBox(width: 2),
-                      Icon(Icons.expand_more, color: theme.colorScheme.primary, size: 16),
+                      Icon(
+                        Icons.expand_more,
+                        color: theme.colorScheme.primary,
+                        size: 16,
+                      ),
                     ],
                   ),
                 ),
@@ -1549,6 +2092,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  Future<List<Activity>> _loadVisibleActivities(
+    FirestoreService storageService,
+    User? currentUser,
+  ) {
+    if (currentUser?.isSuperAdmin == true) {
+      return storageService.getActivities();
+    }
+
+    if (currentUser?.isAdminDinas == true) {
+      return currentUser?.dinasId == null
+          ? Future.value(<Activity>[])
+          : storageService.getActivities(dinasId: currentUser?.dinasId);
+    }
+
+    return storageService.getActivitiesByUser(currentUser?.id ?? '');
+  }
 
   Widget _buildStatsCards() {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -1557,14 +2116,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     return FutureBuilder<Map<String, dynamic>>(
       future: () async {
-        final stats = await storageService.getStatistics(
-          userId: currentUser?.isAdminDinas == true ? null : currentUser?.id,
-          dinasId: currentUser?.isAdminDinas == true ? currentUser?.dinasId : null,
-          year: _selectedYear,
+        final activities = await _loadVisibleActivities(
+          storageService,
+          currentUser,
         );
-        final totalBudgetLimit = await storageService.getTotalBudgetLimit();
+        final yearlyActivities = activities
+            .where((activity) => activity.date.year == _selectedYear)
+            .toList();
+        final usedBudget = yearlyActivities.fold<double>(
+          0,
+          (sum, activity) => sum + activity.budget,
+        );
+        final totalBudgetLimit = await storageService.getTotalBudgetLimit(
+          dinasId: currentUser?.isAdminDinas == true
+              ? currentUser?.dinasId
+              : null,
+        );
         return {
-          ...stats,
+          'totalActivities': yearlyActivities.length,
+          'totalBudget': usedBudget,
+          'pendingActivities': yearlyActivities
+              .where((activity) => activity.status == 'pending')
+              .length,
+          'approvedActivities': yearlyActivities
+              .where((activity) => activity.status == 'approved')
+              .length,
           'totalBudgetLimit': totalBudgetLimit,
         };
       }(),
@@ -1573,21 +2149,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           return _buildLoadingStatsCards();
         }
 
-        final data = snapshot.data ?? {
-          'totalActivities': 0,
-          'totalBudget': 0.0,
-          'pendingActivities': 0,
-          'approvedActivities': 0,
-          'totalBudgetLimit': 1000000000.0,
-        };
+        final data =
+            snapshot.data ??
+            {
+              'totalActivities': 0,
+              'totalBudget': 0.0,
+              'pendingActivities': 0,
+              'approvedActivities': 0,
+              'totalBudgetLimit': 1000000000.0,
+            };
 
         final totalActivities = data['totalActivities'] as int;
         final totalBudget = data['totalBudget'] as double;
-        // approvedActivities available in data['approvedActivities'] but not displayed directly
         final totalBudgetLimit = data['totalBudgetLimit'] as double;
-        
-        // Calculate used budget from approved activities only
-        final usedBudget = totalBudget; // In real scenario, this would be approved only
+
+        final usedBudget = totalBudget;
         final remainingBudget = totalBudgetLimit - usedBudget;
 
         return GridView.count(
@@ -1614,12 +2190,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: _buildStatCard(
                 context: context,
                 icon: Icons.attach_money,
-                label: currentUser?.isAdminDinas == true 
-                    ? 'Total Budget (Tap)' 
+                label: currentUser?.isAdminDinas == true
+                    ? 'Total Budget (Tap)'
                     : 'Total Budget',
                 value: _formatCurrency(totalBudgetLimit),
                 color: Theme.of(context).colorScheme.primary,
-                bgColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                bgColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withOpacity(0.15),
               ),
             ),
             _buildStatCard(
@@ -1725,9 +2303,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isHighlight ? theme.colorScheme.primary.withOpacity(0.2) : theme.cardTheme.color ?? theme.colorScheme.surface,
+        color: isHighlight
+            ? theme.colorScheme.primary.withOpacity(0.2)
+            : theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.primary.withOpacity(isHighlight ? 0.5 : 0.25)),
+        border: Border.all(
+          color: theme.colorScheme.primary.withOpacity(
+            isHighlight ? 0.5 : 0.25,
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1756,7 +2340,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: isHighlight ? theme.colorScheme.primary : theme.textTheme.bodyLarge?.color,
+              color: isHighlight
+                  ? theme.colorScheme.primary
+                  : theme.textTheme.bodyLarge?.color,
             ),
           ),
         ],
@@ -1770,7 +2356,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUser = authProvider.currentUser;
     final storageService = FirestoreService();
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1813,23 +2399,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           const SizedBox(height: 12),
           FutureBuilder<List<double>>(
             future: storageService.getMonthlyBudget(
-              userId: currentUser?.isAdminDinas == true ? null : currentUser?.id,
-              dinasId: currentUser?.isAdminDinas == true ? currentUser?.dinasId : null,
+              userId: currentUser?.isAdminDinas == true
+                  ? null
+                  : currentUser?.id,
+              dinasId: currentUser?.isAdminDinas == true
+                  ? currentUser?.dinasId
+                  : null,
               year: _selectedYear,
             ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const SizedBox(
                   height: 130,
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  child: Center(child: CircularProgressIndicator()),
                 );
               }
 
-              final monthlyBudgets = snapshot.data ?? List<double>.filled(12, 0.0);
+              final monthlyBudgets =
+                  snapshot.data ?? List<double>.filled(12, 0.0);
               final maxBudget = monthlyBudgets.reduce((a, b) => a > b ? a : b);
-              
+
               // Calculate heights as ratio of max (avoid division by zero)
               final heights = monthlyBudgets.map((budget) {
                 if (maxBudget == 0) return 0.0;
@@ -1854,7 +2443,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               height: 100 * heights[index],
                               decoration: BoxDecoration(
                                 color: theme.colorScheme.primary,
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(4),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -1930,41 +2521,57 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 decoration: BoxDecoration(
                   color: theme.cardTheme.color ?? theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: theme.colorScheme.primary.withOpacity(0.25)),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withOpacity(0.25),
+                  ),
                 ),
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(Icons.inbox_outlined, size: 40, color: theme.textTheme.bodySmall?.color),
+                      Icon(
+                        Icons.inbox_outlined,
+                        size: 40,
+                        color: theme.textTheme.bodySmall?.color,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         'Belum ada kegiatan',
-                        style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 13),
+                        style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
                 ),
               )
             else
-              ...recent.map((activity) => _buildActivityCard(activity, storageService)),
+              ...recent.map(
+                (activity) => _buildActivityCard(activity, storageService),
+              ),
           ],
         );
       },
     );
   }
 
-  Widget _buildActivityCard(Activity activity, FirestoreService storageService) {
+  Widget _buildActivityCard(
+    Activity activity,
+    FirestoreService storageService,
+  ) {
     final theme = Theme.of(context);
     final statusColor = activity.status == 'approved'
-        ? theme.colorScheme.primary // Using primary to represent success dynamically or keeping specific colors
+        ? theme
+              .colorScheme
+              .primary // Using primary to represent success dynamically or keeping specific colors
         : activity.status == 'rejected'
-            ? theme.colorScheme.error
-            : theme.colorScheme.secondary;
+        ? theme.colorScheme.error
+        : theme.colorScheme.secondary;
     final statusIcon = activity.status == 'approved'
         ? Icons.check_circle_outline
         : activity.status == 'rejected'
-            ? Icons.cancel_outlined
-            : Icons.hourglass_empty;
+        ? Icons.cancel_outlined
+        : Icons.hourglass_empty;
 
     return Dismissible(
       key: Key(activity.id),
@@ -1988,34 +2595,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
       confirmDismiss: (direction) async {
         return await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text(
-              'Hapus Kegiatan?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            content: Text(
-              'Yakin ingin menghapus "${activity.name}"?',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Batal'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.error,
-                  foregroundColor: theme.colorScheme.onError,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              context: context,
+              builder: (ctx) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Text('Hapus'),
+                title: const Text(
+                  'Hapus Kegiatan?',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                content: Text(
+                  'Yakin ingin menghapus "${activity.name}"?',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Batal'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.error,
+                      foregroundColor: theme.colorScheme.onError,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Hapus'),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ) ?? false;
+            ) ??
+            false;
       },
       onDismissed: (direction) async {
         await storageService.deleteActivity(activity.id);
@@ -2041,7 +2656,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         decoration: BoxDecoration(
           color: theme.cardTheme.color ?? theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.25)),
+          border: Border.all(
+            color: theme.colorScheme.primary.withOpacity(0.25),
+          ),
         ),
         child: Row(
           children: [
@@ -2072,7 +2689,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   const SizedBox(height: 2),
                   Text(
                     '${activity.date.day}/${activity.date.month}/${activity.date.year}',
-                    style: TextStyle(fontSize: 11, color: theme.textTheme.bodySmall?.color),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: theme.textTheme.bodySmall?.color,
+                    ),
                   ),
                 ],
               ),
@@ -2090,7 +2710,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 const SizedBox(height: 2),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(4),
@@ -2127,7 +2750,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _buildNavItem(Icons.home, 'Home', 0),
             _buildNavItem(Icons.analytics_outlined, 'Reports', 1),
             const SizedBox(width: 40), // Space for FAB
-            _buildNavItem(Icons.notifications_outlined, 'Notifications', 2, badgeCount: _notificationCount),
+            _buildNavItem(
+              Icons.notifications_outlined,
+              'Notifications',
+              2,
+              badgeCount: _notificationCount,
+            ),
             _buildNavItem(Icons.settings_outlined, 'Settings', 3),
           ],
         ),
@@ -2135,7 +2763,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index, {int badgeCount = 0}) {
+  Widget _buildNavItem(
+    IconData icon,
+    String label,
+    int index, {
+    int badgeCount = 0,
+  }) {
     final theme = Theme.of(context);
     final isSelected = _selectedIndex == index;
     return InkWell(
@@ -2148,14 +2781,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           );
         } else if (index == 2) {
           // Navigate to Notifications screen & mark as read
-          final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
+          final user = Provider.of<AuthProvider>(
+            context,
+            listen: false,
+          ).currentUser;
           if (user != null) {
             await NotificationService().markNotificationsRead(user.id);
           }
           if (mounted) {
             await Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+              MaterialPageRoute(
+                builder: (context) => const NotificationsScreen(),
+              ),
             );
             // Re-mark as read when returning (in case new notifs came while viewing)
             if (user != null) {
@@ -2180,7 +2818,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             children: [
               Icon(
                 icon,
-                color: isSelected ? theme.colorScheme.primary : theme.iconTheme.color,
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.iconTheme.color,
                 size: 24,
               ),
               if (badgeCount > 0)
@@ -2189,11 +2829,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   top: -4,
                   child: Container(
                     padding: const EdgeInsets.all(2),
-                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.error,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: theme.colorScheme.surface, width: 1.5),
+                      border: Border.all(
+                        color: theme.colorScheme.surface,
+                        width: 1.5,
+                      ),
                     ),
                     child: Text(
                       badgeCount > 99 ? '99+' : '$badgeCount',
@@ -2215,7 +2861,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             style: TextStyle(
               fontSize: 10,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              color: isSelected ? theme.colorScheme.primary : theme.textTheme.bodySmall?.color,
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.textTheme.bodySmall?.color,
             ),
           ),
         ],
@@ -2268,11 +2916,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ],
             ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 22,
-            ),
+            child: Icon(icon, color: Colors.white, size: 22),
           ),
         ],
       ),

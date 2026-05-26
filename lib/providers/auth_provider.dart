@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/firebase_auth_service.dart';
+import '../config/api_config.dart';
+import '../config/app_theme.dart';
+import '../services/api_client.dart';
+import '../services/firestore_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuthService _authService = FirebaseAuthService();
@@ -28,9 +32,30 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Seed 3 dinas awal ke Firestore jika belum ada
-      await _authService.seedDinasIfNeeded();
-      _currentUser = await _authService.getCurrentUser();
+      // 1. Initialize API Client memory token from storage
+      final token = await ApiClient().getToken();
+      ApiClient().setMemoryToken(token);
+
+      // Pre-load dynamic Dinas list so DinasTheme CUID mapping works instantly
+      try {
+        final dinasList = await FirestoreService().getDinasList();
+        DinasTheme.setLoadedDinas(dinasList);
+      } catch (_) {
+        // Fail-safe (will use offline seed list / CUID static mapping fallback)
+      }
+
+      if (ApiConfig.useCustomBackend) {
+        // Fetch current user from API if token exists
+        if (token != null) {
+          _currentUser = await _authService.getCurrentUser();
+        }
+      } else {
+        // Seed 3 dinas awal ke Firestore jika belum ada
+        await _authService.seedDinasIfNeeded();
+        // ── [PERBAIKAN] Sign out agar user harus login ulang setiap buka app ──
+        await _authService.logout();
+        _currentUser = null;
+      }
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -47,6 +72,13 @@ class AuthProvider with ChangeNotifier {
 
     try {
       _currentUser = await _authService.login(username, password);
+
+      // Refresh dynamic Dinas list upon successful login to ensure mappings are fresh
+      try {
+        final dinasList = await FirestoreService().getDinasList();
+        DinasTheme.setLoadedDinas(dinasList);
+      } catch (_) {}
+
       _isLoading = false;
       notifyListeners();
       return true;

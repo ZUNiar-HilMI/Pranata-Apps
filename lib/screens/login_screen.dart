@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'register_screen.dart';
@@ -6,6 +7,7 @@ import 'superadmin/superadmin_dashboard_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../config/app_theme.dart';
+import '../services/login_rate_limiter.dart';
 import 'privacy_policy_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -21,11 +23,52 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  // ── Rate limiting ─────────────────────────────────────────────────────────
+  final _rateLimiter = LoginRateLimiter();
+  bool _isLockedOut = false;
+  int _lockoutSecondsRemaining = 0;
+  Timer? _lockoutTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLockoutStatus();
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _lockoutTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _checkLockoutStatus() async {
+    final canLogin = await _rateLimiter.canAttemptLogin();
+    if (!canLogin) {
+      final remaining = await _rateLimiter.getRemainingLockoutSeconds();
+      if (remaining > 0) {
+        setState(() {
+          _isLockedOut = true;
+          _lockoutSecondsRemaining = remaining;
+        });
+        _startLockoutCountdown();
+      }
+    }
+  }
+
+  void _startLockoutCountdown() {
+    _lockoutTimer?.cancel();
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _lockoutSecondsRemaining--;
+        if (_lockoutSecondsRemaining <= 0) {
+          _isLockedOut = false;
+          _lockoutSecondsRemaining = 0;
+          timer.cancel();
+        }
+      });
+    });
   }
 
   @override
@@ -196,9 +239,46 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: AppSpacing.xl),
 
+                          // Lockout warning banner
+                          if (_isLockedOut) ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.error.withValues(alpha: 0.4),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.lock_clock,
+                                    color: AppColors.error,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Terlalu banyak percobaan.\n'
+                                      'Coba lagi dalam ${_lockoutSecondsRemaining ~/ 60}m ${_lockoutSecondsRemaining % 60}d',
+                                      style: TextStyle(
+                                        color: AppColors.error,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
+
                           // Sign In button
                           Consumer<AuthProvider>(
                             builder: (context, auth, _) {
+                              final isDisabled = auth.isLoading || _isLockedOut;
                               return SizedBox(
                                 width: double.infinity,
                                 child: DecoratedBox(
@@ -206,28 +286,33 @@ class _LoginScreenState extends State<LoginScreen> {
                                     gradient: LinearGradient(
                                       begin: Alignment.topCenter,
                                       end: Alignment.bottomCenter,
-                                      colors: [
-                                        theme.colorScheme.secondary,
-                                        theme.colorScheme.primary,
-                                        theme.colorScheme.primary.withValues(alpha: 0.8),
-                                      ],
+                                      colors: isDisabled
+                                          ? [Colors.grey, Colors.grey.shade700]
+                                          : [
+                                              theme.colorScheme.secondary,
+                                              theme.colorScheme.primary,
+                                              theme.colorScheme.primary.withValues(alpha: 0.8),
+                                            ],
                                     ),
                                     borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: theme.colorScheme.primary.withValues(alpha: 0.4),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
+                                    boxShadow: isDisabled
+                                        ? []
+                                        : [
+                                            BoxShadow(
+                                              color: theme.colorScheme.primary.withValues(alpha: 0.4),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
                                   ),
                                   child: ElevatedButton(
-                                    onPressed: auth.isLoading
+                                    onPressed: isDisabled
                                         ? null
                                         : () => _handleLogin(auth),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.transparent,
                                       shadowColor: Colors.transparent,
+                                      disabledBackgroundColor: Colors.transparent,
                                       padding: const EdgeInsets.symmetric(
                                         vertical: AppSpacing.md,
                                       ),
@@ -245,7 +330,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                           )
                                         : Text(
-                                            'Masuk',
+                                            _isLockedOut
+                                                ? 'Tunggu ${_lockoutSecondsRemaining ~/ 60}:${(_lockoutSecondsRemaining % 60).toString().padLeft(2, '0')}'
+                                                : 'Masuk',
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
@@ -329,6 +416,30 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin(AuthProvider auth) async {
     if (!_formKey.currentState!.validate()) return;
 
+    // ── [PERBAIKAN] Cek rate limiting sebelum login ──────────────────────────
+    final canLogin = await _rateLimiter.canAttemptLogin();
+    if (!canLogin) {
+      final remaining = await _rateLimiter.getRemainingLockoutSeconds();
+      if (mounted) {
+        setState(() {
+          _isLockedOut = true;
+          _lockoutSecondsRemaining = remaining;
+        });
+        _startLockoutCountdown();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Terlalu banyak percobaan. Coba lagi dalam '
+              '${remaining ~/ 60} menit ${remaining % 60} detik.',
+            ),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
     // Simpan referensi sebelum async gap
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -342,6 +453,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
+      // ── Login berhasil → reset counter ─────────────────────────────────────
+      await _rateLimiter.resetAttempts();
       navigator.pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) {
@@ -357,6 +470,20 @@ class _LoginScreenState extends State<LoginScreen> {
         (route) => false,
       );
     } else {
+      // ── Login gagal → catat percobaan ──────────────────────────────────────
+      await _rateLimiter.recordFailedAttempt();
+      // Cek apakah sekarang sudah terblokir
+      final stillCanLogin = await _rateLimiter.canAttemptLogin();
+      if (!stillCanLogin) {
+        final remaining = await _rateLimiter.getRemainingLockoutSeconds();
+        if (mounted) {
+          setState(() {
+            _isLockedOut = true;
+            _lockoutSecondsRemaining = remaining;
+          });
+          _startLockoutCountdown();
+        }
+      }
       messenger.showSnackBar(
         SnackBar(
           content: Text(auth.error ?? 'Login gagal'),

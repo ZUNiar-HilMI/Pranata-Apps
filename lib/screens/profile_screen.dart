@@ -84,10 +84,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             errorMsg.contains('Upload preset not found')) {
           _showErrorSnackBar(
             'Gagal mengunggah foto: Upload Preset tidak ditemukan di akun Cloudinary Anda.\n'
-            'Harap buat Unsigned Upload Preset bernama "${CloudinaryConfig.uploadPreset}" di Dashboard Cloudinary Anda.',
+            'Konfigurasi Aktif: Cloud="${CloudinaryConfig.cloudName}", Preset="${CloudinaryConfig.uploadPreset}", Folder="${CloudinaryConfig.folder}"\n'
+            'Harap buat Unsigned Preset tersebut di Dashboard Cloudinary.',
           );
         } else {
-          _showErrorSnackBar('Gagal mengunggah foto: $errorMsg');
+          _showErrorSnackBar('Gagal mengunggah foto: $errorMsg (Cloud: "${CloudinaryConfig.cloudName}", Preset: "${CloudinaryConfig.uploadPreset}")');
         }
       }
     } finally {

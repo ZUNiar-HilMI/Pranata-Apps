@@ -12,6 +12,7 @@ import 'providers/settings_provider.dart';
 import 'firebase_options.dart';
 import 'services/connectivity_service.dart';
 import 'config/app_theme.dart';
+import 'config/api_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,10 +34,12 @@ void main() async {
     // Ignore missing .env file in local development.
   }
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Initialize Firebase only if custom backend is NOT enabled
+  if (!ApiConfig.useCustomBackend) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
 
   // Initialize connectivity service
   await ConnectivityService().initialize();

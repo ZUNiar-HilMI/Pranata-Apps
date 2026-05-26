@@ -76,7 +76,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       return;
     }
     setState(() { _isVerifying = true; _errorMessage = null; });
-    final result = _otpService.verifyOTP(widget.email, _pinController.text);
+    final result = await _otpService.verifyOTPAsync(widget.email, _pinController.text);
     setState(() => _isVerifying = false);
     if (result['success']) {
       ScaffoldMessenger.of(context).showSnackBar(

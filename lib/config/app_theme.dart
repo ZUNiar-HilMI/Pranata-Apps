@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/dinas.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Default (SuperAdmin / Global) — Navy & Gold
@@ -77,6 +78,21 @@ class DishubColors {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DinasTheme {
+  // Static registry to hold the fetched Dinas list from backend/database dynamically.
+  static List<Dinas> loadedDinas = [];
+
+  static void setLoadedDinas(List<Dinas> list) {
+    loadedDinas = list;
+  }
+
+  static Dinas? _findLoadedDinas(String? dinasId) {
+    if (dinasId == null) return null;
+    for (final d in loadedDinas) {
+      if (d.id == dinasId) return d;
+    }
+    return null;
+  }
+
   /// Kembalikan ThemeData sesuai dinasId user.
   /// Jika [isDark] = false, gunakan lightThemeData dengan accent warna dinas.
   /// Jika dinasId null / tidak dikenal → default Navy-Gold (superadmin).
@@ -89,52 +105,41 @@ class DinasTheme {
 
   // Helper: warna aksen gelap per dinas (untuk light mode)
   static Color _accentDark(String? dinasId) {
-    switch (dinasId) {
-      case 'kominfo': return KominfoColors.accentD;
-      case 'dlh':     return DlhColors.accentD;
-      case 'dishub':  return DishubColors.accentD;
-      default:        return AppColors.goldDark;
-    }
+    return AppColors.goldDark;
   }
 
   /// Kembalikan warna aksen utama untuk dinas (untuk widget kecil tanpa full theme).
   static Color primaryAccent(String? dinasId) {
-    switch (dinasId) {
-      case 'kominfo': return KominfoColors.accent;
-      case 'dlh':     return DlhColors.accent;
-      case 'dishub':  return DishubColors.accent;
-      default:        return AppColors.goldMid;
-    }
+    return AppColors.goldMid;
   }
 
   static Color accentLight(String? dinasId) {
-    switch (dinasId) {
-      case 'kominfo': return KominfoColors.accentL;
-      case 'dlh':     return DlhColors.accentL;
-      case 'dishub':  return DishubColors.accentL;
-      default:        return AppColors.goldLight;
-    }
+    return AppColors.goldLight;
   }
 
   static Color darkBg(String? dinasId) {
-    switch (dinasId) {
-      case 'kominfo': return KominfoColors.dark;
-      case 'dlh':     return DlhColors.dark;
-      case 'dishub':  return DishubColors.dark;
-      default:        return AppColors.navyDark;
-    }
+    return AppColors.navyDark;
   }
 
   static Color cardBg(String? dinasId) {
-    switch (dinasId) {
-      case 'kominfo': return KominfoColors.card;
-      case 'dlh':     return DlhColors.card;
-      case 'dishub':  return DishubColors.card;
-      default:        return AppColors.navyCard;
-    }
+    return AppColors.navyCard;
   }
 
   static String dinasLabel(String? dinasId) {
+    if (dinasId == null) return 'Super Admin';
+    
+    // Look up dynamic name from postgres loaded list if available
+    final matched = _findLoadedDinas(dinasId);
+    if (matched != null) {
+      return matched.name;
+    }
+
+    // CUID fallbacks
+    final lowerId = dinasId.toLowerCase();
+    if (lowerId == 'cmpm1jyp20000ogty0x48jkwv') return 'Dinas Komunikasi dan Informatika';
+    if (lowerId == 'cmpm1jyp70001ogtyzqx4rbgx') return 'Dinas Pekerjaan Umum dan Penataan Ruang';
+    if (lowerId == 'cmpm1jypa0002ogtybaiy3jxm') return 'Dinas Kesehatan';
+
     switch (dinasId) {
       case 'kominfo': return 'Dinas Komunikasi dan Informatika';
       case 'dlh':     return 'Dinas Lingkungan Hidup';
@@ -144,6 +149,20 @@ class DinasTheme {
   }
 
   static String dinasCode(String? dinasId) {
+    if (dinasId == null) return 'SA';
+    
+    // Look up dynamic code from postgres loaded list if available
+    final matched = _findLoadedDinas(dinasId);
+    if (matched != null) {
+      return matched.code.toUpperCase();
+    }
+
+    // CUID fallbacks
+    final lowerId = dinasId.toLowerCase();
+    if (lowerId == 'cmpm1jyp20000ogty0x48jkwv') return 'DISKOMINFO';
+    if (lowerId == 'cmpm1jyp70001ogtyzqx4rbgx') return 'DPUPR';
+    if (lowerId == 'cmpm1jypa0002ogtybaiy3jxm') return 'DINKES';
+
     switch (dinasId) {
       case 'kominfo': return 'KOMINFO';
       case 'dlh':     return 'DLH';
